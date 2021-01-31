@@ -3,25 +3,69 @@
 //////////////////////////
 #include "terrain.h"
 #include "camera.h"
+#include <stdio.h>
+#include <math.h>
+
 #define global_variable static
 #define WNDWIDTH 1280
 #define WNDHEIGHT 720
 
-global_variable BOOL appRunnig;
-Camera camera(Camera::LANDOBJECT);
-
-global_variable uint8_t heightMap[100] = { 
-    0, 0, 40, 30, 50, 50, 70, 50, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 5, 5, 5, 5, 5, 5, 0, 0,
-    0, 0, 10, 10, 10, 10, 10, 10, 0, 0,
-    0, 0, 40, 30, 255, 50, 70, 50, 0, 0,
-    0, 0, 10, 10, 10, 10, 10, 10, 0, 0,
-    0, 0, 5, 5, 5, 5, 5, 5, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 40, 30, 50, 50, 70, 50, 0, 0
+struct Vec2
+{
+    float x;
+    float y;
 };
+
+struct QuadVertex
+{
+    float x, y, z;
+    D3DCOLOR color;
+    static const DWORD FVF = D3DFVF_XYZ | D3DFVF_DIFFUSE;
+};
+
+global_variable BOOL appRunnig;
+global_variable Vec2 mouseDefaultPos;
+global_variable Vec2 mouseRMovement;
+global_variable Vec2 mouseVertexPos;
+global_variable BOOL mouseClick;
+IDirect3DVertexBuffer9* Quad = 0;
+D3DMATERIAL9 quadMtrl;
+D3DXVECTOR3 mouseWorldPos(0.0f, 0.0f, 0.0f);
+D3DXVECTOR3 dirVector(0.0f, 0.0f, 0.0f);
+
+Camera camera(Camera::LANDOBJECT);
+global_variable uint8_t heightMap[100] = { 
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+
+D3DXVECTOR3 Vector3Add(D3DXVECTOR3 v0, D3DXVECTOR3 v1)
+{
+    D3DXVECTOR3 result;
+    result.x = v0.x + v1.x;
+    result.y = v0.y + v1.y;
+    result.z = v0.z + v1.z;
+    return result;
+}
+
+
+D3DXVECTOR3 Vec3RotateY(D3DXVECTOR3 v, float angle)
+{
+    D3DXVECTOR3 rotatedVector;
+        rotatedVector.x = v.x * cos(angle) + v.z * sin(angle);
+        rotatedVector.y = v.y;
+        rotatedVector.z = -v.x * sin(angle) + v.z * cos(angle); 
+    return rotatedVector;
+}
+
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
@@ -35,6 +79,29 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam)
         case WM_DESTROY:
         {
             appRunnig = FALSE;
+        }break;
+        case WM_LBUTTONDOWN:
+        {
+            mouseClick = TRUE;
+        }break;
+        case WM_LBUTTONUP:
+        {
+            mouseClick = FALSE;
+        }break;
+        case WM_MOUSEMOVE:
+        {
+            POINT actualMousePos;
+            GetCursorPos(&actualMousePos);
+            mouseRMovement.x += actualMousePos.x - mouseDefaultPos.x;
+            mouseRMovement.y -= actualMousePos.y - mouseDefaultPos.y;
+            SetCursorPos(mouseDefaultPos.x, mouseDefaultPos.y); 
+        }break;
+        case WM_MOVE:
+        {
+            float xOffset = (float)(short)LOWORD(lParam);
+            float yOffset = (float)(short)HIWORD(lParam);
+            mouseDefaultPos.x = (WNDWIDTH / 2.0f) + xOffset;
+            mouseDefaultPos.y = (WNDHEIGHT / 2.0f) + yOffset;
         }break;
         default:
         {
@@ -109,82 +176,128 @@ int InitializeD3D9(IDirect3DDevice9** device, HWND hWnd)
 
 void SetUp(IDirect3DDevice9* device)
 {
-    /*
-    // Set Camera.
-	D3DXVECTOR3    pos(-15.0f, 1.0f, 5.0f);
-	D3DXVECTOR3 target(25.0f, 0.0f, 0.0f);
-	D3DXVECTOR3     up(0.0f, 1.0f, 0.0f);
-	D3DXMATRIX V;
-	D3DXMatrixLookAtLH(&V, &pos, &target, &up);
-	device->SetTransform(D3DTS_VIEW, &V);
-    */
+    device->CreateVertexBuffer(
+            6 * sizeof(QuadVertex),
+            D3DUSAGE_WRITEONLY,
+            QuadVertex::FVF,
+            D3DPOOL_MANAGED,
+            &Quad,
+            0);
+
+    QuadVertex* v = 0;
+    Quad->Lock(0, 0, (void**)&v, 0);
+
+    // quad built from two triangles, note texture coordinates:
+    QuadVertex quadVertex0 = {-1.0f,  0.1f, -1.0f, D3DCOLOR_XRGB(255, 0, 0)};
+    QuadVertex quadVertex1 = {-1.0f,  0.1f,  1.0f, D3DCOLOR_XRGB(255, 0, 0)};
+    QuadVertex quadVertex2 = { 1.0f,  0.1f,  1.0f, D3DCOLOR_XRGB(255, 0, 0)};
+
+    QuadVertex quadVertex3 = {-1.0f,  0.1f, -1.0f, D3DCOLOR_XRGB(255, 0, 0)};
+    QuadVertex quadVertex4 = { 1.0f,  0.1f,  1.0f, D3DCOLOR_XRGB(255, 0, 0)};
+    QuadVertex quadVertex5 = { 1.0f,  0.1f, -1.0f, D3DCOLOR_XRGB(255, 0, 0)};
+    
+    v[0] = quadVertex0;
+    v[1] = quadVertex1;
+    v[2] = quadVertex2;
+    
+    v[3] = quadVertex3;
+    v[4] = quadVertex4;
+    v[5] = quadVertex5;
+    
+    Quad->Unlock();
+     
+    ZeroMemory(&quadMtrl, sizeof(quadMtrl));
+    quadMtrl.Diffuse  = D3DXCOLOR(1.0f, 0.0f, 0.0f, 1.0f); // red
+    quadMtrl.Ambient  = D3DXCOLOR(1.0f, 0.0f, 0.0f, 1.0f); // red
+    quadMtrl.Specular = D3DXCOLOR(1.0f, 0.0f, 0.0f, 1.0f); // red
+    quadMtrl.Emissive = D3DXCOLOR(0.0f, 0.0f, 0.0f, 1.0f); // no emission
+    quadMtrl.Power    = 5.0f;
+
+    // Set Lighting off
+    //device->SetRenderState(D3DRS_LIGHTING, false);
+    D3DLIGHT9 dir;
+    ::ZeroMemory(&dir, sizeof(dir));
+    dir.Type      = D3DLIGHT_DIRECTIONAL;
+    dir.Diffuse   = D3DXCOLOR(1.0f, 1.0f, 1.0f, 1.0f);
+    dir.Specular  = D3DXCOLOR(1.0f, 1.0f, 1.0f, 1.0f) * 0.3f;
+    dir.Ambient   = D3DXCOLOR(0.0f, 1.0f, 0.0f, 1.0f) * 0.6f;
+    dir.Direction = D3DXVECTOR3(1.0f, 1.0f, 0.0f);
+    device->SetLight(0, &dir);
+    device->LightEnable(0, true);
+    device->SetRenderState(D3DRS_NORMALIZENORMALS, true);
+    device->SetRenderState(D3DRS_SPECULARENABLE, true);
+
+
     // Set projection Matrix
     D3DXMATRIX proj;
     D3DXMatrixPerspectiveFovLH(&proj, D3DX_PI * 0.4f, (float)WNDWIDTH / (float)WNDHEIGHT, 1.0f, 1000.f);
     device->SetTransform(D3DTS_PROJECTION, &proj);
-    // Set Lighting off
-    //device->SetRenderState(D3DRS_LIGHTING, false);
-    device->SetRenderState(D3DRS_LIGHTING, true);
+}
 
-    D3DLIGHT9 dir;
-    ::ZeroMemory(&dir, sizeof(dir));
-	dir.Type      = D3DLIGHT_DIRECTIONAL;
-	dir.Diffuse   = D3DXCOLOR(1.0f, 1.0f, 1.0f, 1.0f);
-	dir.Specular  = D3DXCOLOR(1.0f, 1.0f, 1.0f, 1.0f) * 0.3f;
-	dir.Ambient   = D3DXCOLOR(0.0f, 1.0f, 0.0f, 1.0f) * 0.6f;
-	dir.Direction = D3DXVECTOR3(1.0f, 1.0f, 0.0f);
-    
-    device->SetLight(0, &dir);
-    device->LightEnable(0, true);
-	device->SetRenderState(D3DRS_NORMALIZENORMALS, true);
-	device->SetRenderState(D3DRS_SPECULARENABLE, true);
+void Update(Terrain* terrain, IDirect3DDevice9* device, float deltaTime)
+{
+
+    dirVector.x = mouseRMovement.x * 0.02;
+    dirVector.y = 0.0f; 
+    dirVector.z = mouseRMovement.y * 0.02;
+
+    static float angle = 0.0f;
+
+	if(GetAsyncKeyState('W') & 0x8000f)
+		camera.walk(4.0f * deltaTime);
+	if(GetAsyncKeyState('S') & 0x8000f)
+		camera.walk(-4.0f * deltaTime);
+	if(GetAsyncKeyState('A') & 0x8000f)
+		camera.strafe(-4.0f * deltaTime);
+	if(GetAsyncKeyState('D') & 0x8000f)
+		camera.strafe(4.0f * deltaTime);
+	if(GetAsyncKeyState('R') & 0x8000f)
+		camera.fly(4.0f * deltaTime);
+	if(GetAsyncKeyState('F') & 0x8000f)
+		camera.fly(-4.0f * deltaTime);
+	if(GetAsyncKeyState(VK_UP) & 0x8000f)
+		camera.pitch(-1.0f * deltaTime);
+	if(GetAsyncKeyState(VK_DOWN) & 0x8000f)
+		camera.pitch(1.0f * deltaTime);
+	if(GetAsyncKeyState(VK_LEFT) & 0x8000f)
+    {
+		camera.yaw(-1.0f * deltaTime);
+        angle -= 1.0f * deltaTime;
+    }
+	if(GetAsyncKeyState(VK_RIGHT) & 0x8000f)
+    {
+		camera.yaw(1.0f * deltaTime);
+        angle += 1.0f * deltaTime;
+    }
+	if(GetAsyncKeyState('N') & 0x8000f)
+		camera.roll(1.0f * deltaTime);
+	if(GetAsyncKeyState('M') & 0x8000f)
+		camera.roll(-1.0f * deltaTime);
+
+    D3DXMATRIX V;
+    camera.getViewMatrix(&V);
+    device->SetTransform(D3DTS_VIEW, &V);
+
+    dirVector = Vec3RotateY(dirVector, angle);
+    mouseWorldPos = Vector3Add(mouseWorldPos, dirVector);
+    mouseRMovement.x = 0;
+    mouseRMovement.y = 0;
 }
 
 void Render(Terrain* terrain, IDirect3DDevice9* device, float deltaTime)
 {
     if(device)
     {
-        //device->LightEnable(0, true);
-
-		if(GetAsyncKeyState('W') & 0x8000f)
-		    camera.walk(4.0f * deltaTime);
-		if(GetAsyncKeyState('S') & 0x8000f)
-		    camera.walk(-4.0f * deltaTime);
-		if(GetAsyncKeyState('A') & 0x8000f)
-		    camera.strafe(-4.0f * deltaTime);
-		if(GetAsyncKeyState('D') & 0x8000f)
-		    camera.strafe(4.0f * deltaTime);
-		if(GetAsyncKeyState('R') & 0x8000f)
-		    camera.fly(4.0f * deltaTime);
-		if(GetAsyncKeyState('F') & 0x8000f)
-		    camera.fly(-4.0f * deltaTime);
-		if(GetAsyncKeyState(VK_UP) & 0x8000f)
-		    camera.pitch(-1.0f * deltaTime);
-		if(GetAsyncKeyState(VK_DOWN) & 0x8000f)
-		    camera.pitch(1.0f * deltaTime);
-		if(GetAsyncKeyState(VK_LEFT) & 0x8000f)
-		    camera.yaw(-1.0f * deltaTime);
-		if(GetAsyncKeyState(VK_RIGHT) & 0x8000f)
-		    camera.yaw(1.0f * deltaTime);
-		if(GetAsyncKeyState('N') & 0x8000f)
-		    camera.roll(1.0f * deltaTime);
-		if(GetAsyncKeyState('M') & 0x8000f)
-		    camera.roll(-1.0f * deltaTime);
-
-        D3DXMATRIX V;
-        camera.getViewMatrix(&V);
-        device->SetTransform(D3DTS_VIEW, &V);
-
-
         device->Clear(0, 0, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xff4ddbff, 1.0f, 0);
 
         device->BeginScene();
 
+
+        device->SetRenderState(D3DRS_LIGHTING, true);
         device->SetStreamSource(0, terrain->VB, 0, sizeof(Vertex));
         device->SetFVF(Vertex::FVF);
         device->SetIndices(terrain->IB);
-        device->SetMaterial(&terrain->mtrl);
-        
+        device->SetMaterial(&terrain->mtrl);    
         D3DXMATRIX trans;
         D3DXMatrixTranslation(&trans, 0.0f, 0.0f, 0.0f);
         device->SetTransform(D3DTS_WORLD, &trans);
@@ -195,6 +308,16 @@ void Render(Terrain* terrain, IDirect3DDevice9* device, float deltaTime)
                                      terrain->numVertices,
                                      0,
                                      terrain->numTrinalges);
+
+    
+        device->SetRenderState(D3DRS_LIGHTING, false);
+        device->SetStreamSource(0, Quad, 0, sizeof(QuadVertex));
+        device->SetFVF(QuadVertex::FVF);
+        //device->SetMaterial(&quadMtrl);
+        D3DXMatrixTranslation(&trans, mouseWorldPos.x, 0.0f, mouseWorldPos.z);
+        device->SetTransform(D3DTS_WORLD, &trans);
+        device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 2);
+
 
         device->EndScene();
 
@@ -221,10 +344,17 @@ int WinMain(HINSTANCE hInstance,
         return(1);    
     }
 
+    RECT wr;
+	wr.left = 0;
+	wr.right = WNDWIDTH;
+	wr.top = 0;
+	wr.bottom = WNDHEIGHT;
+	AdjustWindowRect(&wr, WS_OVERLAPPED, FALSE);
+
     HWND hWnd = CreateWindowA("FrameClass", "Role3DGame",
                   WS_OVERLAPPEDWINDOW,
-                  CW_USEDEFAULT, CW_USEDEFAULT,
-                  WNDWIDTH, WNDHEIGHT,
+                  0, 0,
+                  wr.right - wr.left, wr.bottom - wr.top,
                   NULL, NULL,
                   hInstance,
                   NULL);
@@ -252,7 +382,13 @@ int WinMain(HINSTANCE hInstance,
     if(hWnd)
     {
         appRunnig = TRUE;
-        ShowWindow(hWnd, SW_SHOW); 
+
+        ShowWindow(hWnd, SW_SHOW);
+        ShowCursor(false); 
+        mouseDefaultPos.x = WNDWIDTH / 2.0f;
+        mouseDefaultPos.y = WNDHEIGHT / 2.0f;
+        SetCursorPos(mouseDefaultPos.x, mouseDefaultPos.y);
+
         while(appRunnig == TRUE)
         {
             MSG  msg;
@@ -271,7 +407,10 @@ int WinMain(HINSTANCE hInstance,
                 {
                     float currentTime = (float)timeGetTime();
                     float deltaTime = (currentTime - lastTime) * 0.001f;
+
+                    Update(&terrain, device, deltaTime);
                     Render(&terrain, device, deltaTime);
+
                     lastTime = currentTime;    
                 }
                 else
@@ -288,5 +427,37 @@ int WinMain(HINSTANCE hInstance,
     
     return 0;
 }
+/*
+            char message[63];
+            sprintf(message, "mouseX: %d\n", mouseRMovement.x);
+            OutputDebugString(message);
+            sprintf(message, "mouseY: %d\n", mouseRMovement.y);
+            OutputDebugString(message);
+*/
+    /*
+    // mouse handler stuff...
+    mouseVertexPos.x = mouseRMovement.x / 200;
+    mouseVertexPos.y = mouseRMovement.y / 200;
+    if(mouseVertexPos.x < 0)
+                    {
+        mouseVertexPos.x = 0;
+    }
+    else if(mouseVertexPos.x > 9)
+    {
+        mouseVertexPos.x = 9;
+    }
 
-
+    if(mouseVertexPos.y < 0)
+    {
+        mouseVertexPos.y = 0;
+    }
+    else if(mouseVertexPos.y > 9)
+    {
+        mouseVertexPos.y = 9;
+    }
+    if(mouseClick == TRUE)
+    {
+        UpdateHeightMapWithMousePos(terrain, mouseVertexPos.x, mouseVertexPos.y, true, device);
+        mouseClick = FALSE;
+    }
+    */

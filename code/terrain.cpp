@@ -28,6 +28,33 @@ void SetMapInfo(Terrain* terrain, int numVrow, int numVcol, int cellSpace, float
     terrain->mtrl.Power    = 5.0f;
 }
 
+void UpdateHeightMapWithMousePos(Terrain* terrain, int x, int y, BOOL value, IDirect3DDevice9* device)
+{
+    int index = (y * terrain->numVertexRow) + x;
+    if(value == TRUE)
+    {
+        terrain->heightMap[index] += 3;
+    }
+    else
+    {
+        terrain->heightMap[index]--;
+    }
+    Vertex* v = 0;    
+    terrain->VB->Lock(0, 0, (void**)&v, 0);
+
+    D3DXVECTOR3 normals = GetVertexNormal(x, y, terrain);
+    Vertex vertex = {
+        (float)x * (float)terrain->cellSpacing,
+        (float)terrain->heightMap[(y * terrain->numVertexRow) + x] * terrain->heightScale,
+        (float)y * (float)terrain->cellSpacing,
+        normals.x,
+        normals.y,
+        normals.z
+    };
+    v[(y * terrain->numVertexRow) + x] = vertex;
+    terrain->VB->Unlock();
+}
+
 void SetHeightMapInfo(uint8_t height[], Terrain* terrain)
 {
     for(int y = 0; y < terrain->numVertexCol; y++)

@@ -37,5 +37,7 @@ void SetHeightMapInfo(uint8_t height[], Terrain* terrain);
 void GenVertices(Terrain* terrain, IDirect3DDevice9* device);
 void GenIndices(Terrain* terrain, IDirect3DDevice9* device);
 D3DXVECTOR3 GetVertexNormal(int x, int y, Terrain* terrain);
+void UpdateHeightMapWithMousePos(Terrain* terrain, int x, int y,
+                                 BOOL value, IDirect3DDevice9* device);
 
 #endif
