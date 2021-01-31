@@ -178,3 +178,44 @@ D3DXVECTOR3 GetVertexNormal(int x, int y, Terrain* terrain)
     return n;     
 }
 
+float getHeight(Terrain* terrain, float x, float z)
+{
+	float col = floorf(x);
+	float row = floorf(z);
+
+	float A = getHeightmapEntry(row,   col, terrain);
+	float B = getHeightmapEntry(row,   col+1, terrain);
+	float C = getHeightmapEntry(row+1, col, terrain);
+	float D = getHeightmapEntry(row+1, col+1, terrain);
+
+	float dx = x - col;
+	float dz = z - row;
+
+	float height = 0.0f;
+	if(dz < 1.0f - dx)  // upper triangle ABC
+	{
+		float uy = B - A; // A->B
+		float vy = C - A; // A->C
+
+		height = A + Lerp(0.0f, uy, dx) + Lerp(0.0f, vy, dz);
+	}
+	else // lower triangle DCB
+	{
+		float uy = C - D; // D->C
+		float vy = B - D; // D->B
+		height = D + Lerp(0.0f, uy, 1.0f - dx) + Lerp(0.0f, vy, 1.0f - dz);
+	}
+
+	return height;
+}
+
+float Lerp(float a, float b, float t)
+{
+    return a - (a*t) + (b*t);
+}
+
+int getHeightmapEntry(int row, int col, Terrain* terrain)
+{
+    return terrain->heightMap[(row * terrain->numVertexRow) + col];
+}
+

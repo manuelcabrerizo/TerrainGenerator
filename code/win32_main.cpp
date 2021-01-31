@@ -280,8 +280,38 @@ void Update(Terrain* terrain, IDirect3DDevice9* device, float deltaTime)
 
     dirVector = Vec3RotateY(dirVector, angle);
     mouseWorldPos = Vector3Add(mouseWorldPos, dirVector);
+
     mouseRMovement.x = 0;
     mouseRMovement.y = 0;
+
+    // mouse handler stuff...
+    mouseVertexPos.x = mouseWorldPos.x / terrain->cellSpacing;
+    mouseVertexPos.y = mouseWorldPos.z / terrain->cellSpacing;
+
+    if(mouseVertexPos.x < 0)
+    {
+        mouseVertexPos.x = 0;
+    }
+    else if(mouseVertexPos.x > 9)
+    {
+        mouseVertexPos.x = 9;
+    }
+
+    if(mouseVertexPos.y < 0)
+    {
+        mouseVertexPos.y = 0;
+    }
+    else if(mouseVertexPos.y > 9)
+    {
+        mouseVertexPos.y = 9;
+    }
+    if(mouseClick == TRUE)
+    {
+        UpdateHeightMapWithMousePos(terrain, mouseVertexPos.x, mouseVertexPos.y, true, device);
+        mouseClick = FALSE;
+    }
+
+
 }
 
 void Render(Terrain* terrain, IDirect3DDevice9* device, float deltaTime)
@@ -314,7 +344,11 @@ void Render(Terrain* terrain, IDirect3DDevice9* device, float deltaTime)
         device->SetStreamSource(0, Quad, 0, sizeof(QuadVertex));
         device->SetFVF(QuadVertex::FVF);
         //device->SetMaterial(&quadMtrl);
-        D3DXMatrixTranslation(&trans, mouseWorldPos.x, 0.0f, mouseWorldPos.z);
+        float height = getHeight(terrain, mouseVertexPos.x, mouseVertexPos.y);
+        char message[63];
+        sprintf(message, "mouseX: %f\n", height);
+        OutputDebugString(message);
+        D3DXMatrixTranslation(&trans, mouseWorldPos.x, height * terrain->heightScale, mouseWorldPos.z);
         device->SetTransform(D3DTS_WORLD, &trans);
         device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 2);
 
@@ -435,29 +469,5 @@ int WinMain(HINSTANCE hInstance,
             OutputDebugString(message);
 */
     /*
-    // mouse handler stuff...
-    mouseVertexPos.x = mouseRMovement.x / 200;
-    mouseVertexPos.y = mouseRMovement.y / 200;
-    if(mouseVertexPos.x < 0)
-                    {
-        mouseVertexPos.x = 0;
-    }
-    else if(mouseVertexPos.x > 9)
-    {
-        mouseVertexPos.x = 9;
-    }
 
-    if(mouseVertexPos.y < 0)
-    {
-        mouseVertexPos.y = 0;
-    }
-    else if(mouseVertexPos.y > 9)
-    {
-        mouseVertexPos.y = 9;
-    }
-    if(mouseClick == TRUE)
-    {
-        UpdateHeightMapWithMousePos(terrain, mouseVertexPos.x, mouseVertexPos.y, true, device);
-        mouseClick = FALSE;
-    }
     */
