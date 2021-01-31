@@ -10,7 +10,7 @@ Camera::Camera()
 Camera::Camera(CameraType cameraType)
 {
     this->cameraType = cameraType;
-    this->pos   = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
+    this->pos   = D3DXVECTOR3(0.0f, 5.0f, -10.0f);
     this->right = D3DXVECTOR3(1.0f, 0.0f, 0.0f);
     this->up    = D3DXVECTOR3(0.0f, 1.0f, 0.0f);
     this->look  = D3DXVECTOR3(0.0f, 0.0f, 1.0f);
