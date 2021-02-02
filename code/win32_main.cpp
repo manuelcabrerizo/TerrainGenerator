@@ -6,8 +6,8 @@
 #include <stdio.h>
 
 #define global_variable static
-#define WNDWIDTH 1280
-#define WNDHEIGHT 720
+#define WNDWIDTH 1920
+#define WNDHEIGHT 1080
 
 struct Vec2
 {
@@ -154,7 +154,7 @@ int InitializeD3D9(IDirect3DDevice9** device, HWND hWnd)
 	d3dpp.MultiSampleQuality         = 0;
 	d3dpp.SwapEffect                 = D3DSWAPEFFECT_DISCARD; 
 	d3dpp.hDeviceWindow              = hWnd;
-	d3dpp.Windowed                   = true;
+	d3dpp.Windowed                   = false;
 	d3dpp.EnableAutoDepthStencil     = true; 
 	d3dpp.AutoDepthStencilFormat     = D3DFMT_D24S8;
 	d3dpp.Flags                      = 0;

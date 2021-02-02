@@ -4,7 +4,7 @@
 
 #define global_variable static
 
-global_variable uint8_t heightMapFloat[64 * 64] = {};
+global_variable float heightMapFloat[64 * 64] = {};
 
 void SetMapInfo(Terrain* terrain, int numVrow, int numVcol, int cellSpace, float heightS)
 {
@@ -72,12 +72,7 @@ void UpdateHeightMapWithMousePos(Terrain* terrain, int x, int y, BOOL value, flo
         index3 = terrain->numVertices - 1;
     }
 
-    heightMapFloat[index]  = terrain->heightMap[index];
-    heightMapFloat[index1] = terrain->heightMap[index1];
-    heightMapFloat[index2] = terrain->heightMap[index2];
-    heightMapFloat[index3] = terrain->heightMap[index3];
-
-    float incrementFactor = 125.0f;
+    float incrementFactor = 50.0f;
 
     if(value == TRUE)
     {
