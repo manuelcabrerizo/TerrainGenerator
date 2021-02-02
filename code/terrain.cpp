@@ -1,6 +1,10 @@
 #include "terrain.h"
+#include <stdio.h>
+#include <math.h>
 
-//#define D3DCOLOR_XRGB(r,g,b) D3DCOLOR_ARGB(0x33,r,g,b)
+#define global_variable static
+
+global_variable uint8_t heightMapFloat[64 * 64] = {};
 
 void SetMapInfo(Terrain* terrain, int numVrow, int numVcol, int cellSpace, float heightS)
 {
@@ -21,37 +25,135 @@ void SetMapInfo(Terrain* terrain, int numVrow, int numVcol, int cellSpace, float
     terrain->heightMap = (uint8_t*)VirtualAlloc(0, terrain->numVertices * sizeof(uint8_t), MEM_COMMIT, PAGE_READWRITE);
     
     ZeroMemory(&terrain->mtrl, sizeof(terrain->mtrl));
-    terrain->mtrl.Diffuse  = D3DXCOLOR(0.0f, 0.5f, 0.0f, 1.0f); // red
-    terrain->mtrl.Ambient  = D3DXCOLOR(0.0f, 0.5f, 0.0f, 1.0f); // red
-    terrain->mtrl.Specular = D3DXCOLOR(0.0f, 0.5f, 0.0f, 1.0f); // red
+    terrain->mtrl.Diffuse  = D3DXCOLOR(0.0f, 0.6f, 0.0f, 1.0f); // red
+    terrain->mtrl.Ambient  = D3DXCOLOR(0.0f, 0.4f, 0.0f, 1.0f); // red
+    terrain->mtrl.Specular = D3DXCOLOR(0.0f, 0.4f, 0.0f, 1.0f); // red
     terrain->mtrl.Emissive = D3DXCOLOR(0.0f, 0.0f, 0.0f, 1.0f); // no emission
     terrain->mtrl.Power    = 5.0f;
 }
 
-void UpdateHeightMapWithMousePos(Terrain* terrain, int x, int y, BOOL value, IDirect3DDevice9* device)
+uint8_t SetProperHeight(uint8_t value)
 {
+    if(value > 255)
+    {
+        value = 255;
+    }
+    if(value < 0)
+    {
+        value = 0;
+    }
+    return value;
+}
+
+void UpdateHeightMapWithMousePos(Terrain* terrain, int x, int y, BOOL value, float deltaTime, IDirect3DDevice9* device)
+{
+    if(x >= terrain->numVertexRow)
+        x = terrain->numVertexRow - 1;
+    if(y >= terrain->numVertexCol)
+        y = terrain->numVertexCol - 1;
+    if(x < 0)
+        x = 0;
+    if(y < 0)
+        y = 0; 
     int index = (y * terrain->numVertexRow) + x;
+    int index1 = (y * terrain->numVertexRow) + (x + 1);
+    int index2 = ((y + 1) * terrain->numVertexRow) + x;
+    int index3 = ((y + 1) * terrain->numVertexRow) + (x + 1);
+    if(index1 >= terrain->numVertices)
+    {
+        index1 = terrain->numVertices - 1;
+    }
+    if(index2 >= terrain->numVertices)
+    {
+        index2 = terrain->numVertices - 1;
+    }
+    if(index3 >= terrain->numVertices)
+    {
+        index3 = terrain->numVertices - 1;
+    }
+
+    heightMapFloat[index]  = terrain->heightMap[index];
+    heightMapFloat[index1] = terrain->heightMap[index1];
+    heightMapFloat[index2] = terrain->heightMap[index2];
+    heightMapFloat[index3] = terrain->heightMap[index3];
+
+    float incrementFactor = 125.0f;
+
     if(value == TRUE)
     {
-        terrain->heightMap[index] += 3;
+        if(heightMapFloat[index] < 255)
+            heightMapFloat[index] += (incrementFactor * deltaTime);
+        if(heightMapFloat[index1] < 255)
+            heightMapFloat[index1] += (incrementFactor * deltaTime);
+        if(heightMapFloat[index2] < 255)
+            heightMapFloat[index2] += (incrementFactor * deltaTime);
+        if(heightMapFloat[index3] < 255)
+            heightMapFloat[index3] += (incrementFactor * deltaTime);
     }
     else
     {
-        terrain->heightMap[index]--;
+        if(heightMapFloat[index] > 0)
+            heightMapFloat[index] -= (incrementFactor * deltaTime);
+        if(heightMapFloat[index1] > 0)
+            heightMapFloat[index1] -= (incrementFactor * deltaTime);
+        if(heightMapFloat[index2] > 0)
+            heightMapFloat[index2] -= (incrementFactor * deltaTime);
+        if(heightMapFloat[index3] > 0)
+            heightMapFloat[index3] -= (incrementFactor * deltaTime);
     }
+
+    terrain->heightMap[index]  = heightMapFloat[index];
+    terrain->heightMap[index1] = heightMapFloat[index1];
+    terrain->heightMap[index2] = heightMapFloat[index2];
+    terrain->heightMap[index3] = heightMapFloat[index3];
+
     Vertex* v = 0;    
     terrain->VB->Lock(0, 0, (void**)&v, 0);
 
     D3DXVECTOR3 normals = GetVertexNormal(x, y, terrain);
+    D3DXVECTOR3 normals1 = GetVertexNormal(x + 1, y, terrain);
+    D3DXVECTOR3 normals2 = GetVertexNormal(x, y + 1, terrain);
+    D3DXVECTOR3 normals3 = GetVertexNormal(x + 1, y + 1, terrain);
+
     Vertex vertex = {
         (float)x * (float)terrain->cellSpacing,
-        (float)terrain->heightMap[(y * terrain->numVertexRow) + x] * terrain->heightScale,
+        (float)terrain->heightMap[index] * terrain->heightScale,
         (float)y * (float)terrain->cellSpacing,
         normals.x,
         normals.y,
         normals.z
     };
-    v[(y * terrain->numVertexRow) + x] = vertex;
+    Vertex vertex1 = {
+        (float)(x + 1) * (float)terrain->cellSpacing,
+        (float)terrain->heightMap[index1] * terrain->heightScale,
+        (float)y * (float)terrain->cellSpacing,
+        normals1.x,
+        normals1.y,
+        normals1.z
+    };
+    Vertex vertex2 = {
+        (float)x * (float)terrain->cellSpacing,
+        (float)terrain->heightMap[index2] * terrain->heightScale,
+        (float)(y + 1) * (float)terrain->cellSpacing,
+        normals2.x,
+        normals2.y,
+        normals2.z
+    };
+    Vertex vertex3 = {
+        (float)(x + 1) * (float)terrain->cellSpacing,
+        (float)terrain->heightMap[index3] * terrain->heightScale,
+        (float)(y + 1) * (float)terrain->cellSpacing,
+        normals3.x,
+        normals3.y,
+        normals3.z
+    };
+
+
+    v[index] = vertex;
+    v[index1] = vertex1;
+    v[index2] = vertex2;
+    v[index3] = vertex3;
+
     terrain->VB->Unlock();
 }
 
@@ -85,23 +187,7 @@ void GenVertices(Terrain* terrain, IDirect3DDevice9* device)
     {
        for(int x = 0; x < terrain->numVertexRow; x++)
        {
-           /*
-            D3DCOLOR color;  
-            if(x % 2 == 0)
-            {
-                color = D3DCOLOR_XRGB(0, 255, 0);
-            }
-            else if(y % 2 == 0)
-            {
-                color = D3DCOLOR_XRGB(0, 255, 0);
-            }
-            else
-            {
-                color = D3DCOLOR_XRGB(0, 255, 0);
-            }
-            */
             D3DXVECTOR3 normals = GetVertexNormal(x, y, terrain);
-
             Vertex vertex = {
                 (float)x * (float)terrain->cellSpacing,
                 (float)terrain->heightMap[(y * terrain->numVertexRow) + x] * terrain->heightScale,
@@ -160,6 +246,14 @@ void GenIndices(Terrain* terrain, IDirect3DDevice9* device)
 
 float GetYComponent(int x, int z, Terrain* terrain)
 {
+    if(x >= terrain->numVertexRow)
+        x = terrain->numVertexRow - 1;
+    if(z >= terrain->numVertexCol)
+        z = terrain->numVertexCol - 1;
+    if(x < 0)
+        x = 0;
+    if(z < 0)
+        z = 0; 
     return (float)terrain->heightMap[(z * terrain->numVertexRow) + x];
 }
 
@@ -216,6 +310,28 @@ float Lerp(float a, float b, float t)
 
 int getHeightmapEntry(int row, int col, Terrain* terrain)
 {
+    if(row >= terrain->numVertexRow)
+        row = terrain->numVertexRow - 1;
+    if(col >= terrain->numVertexCol)
+        col = terrain->numVertexCol - 1;
+    if(row < 0)
+        row = 0;
+    if(col < 0)
+        col = 0; 
     return terrain->heightMap[(row * terrain->numVertexRow) + col];
 }
 
+
+void GenSenBaseHeight(Terrain* terrain)
+{
+    for(int y = 0; y < terrain->numVertexCol; y++)
+    {
+        for(int x = 0; x < terrain->numVertexRow; x++)
+        {
+            int index = (y * terrain->numVertexRow) + x;
+
+            terrain->heightMap[index] =  (uint8_t)(5 * (sin(y)+cos(x))); 
+        }  
+    }
+
+}

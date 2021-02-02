@@ -4,7 +4,6 @@
 #include "terrain.h"
 #include "camera.h"
 #include <stdio.h>
-#include <math.h>
 
 #define global_variable static
 #define WNDWIDTH 1280
@@ -23,29 +22,29 @@ struct QuadVertex
     static const DWORD FVF = D3DFVF_XYZ | D3DFVF_DIFFUSE;
 };
 
+enum RenderState
+{
+    VERTEXSHOW,
+    WIREFRAME,
+    SOLID,
+    WIREFRAMESOLID,
+    WIREFRAMEVERTEX,
+    FULL, 
+};
+
 global_variable BOOL appRunnig;
 global_variable Vec2 mouseDefaultPos;
 global_variable Vec2 mouseRMovement;
 global_variable Vec2 mouseVertexPos;
 global_variable BOOL mouseClick;
+global_variable BOOL mouseRClick;
 IDirect3DVertexBuffer9* Quad = 0;
 D3DMATERIAL9 quadMtrl;
 D3DXVECTOR3 mouseWorldPos(0.0f, 0.0f, 0.0f);
 D3DXVECTOR3 dirVector(0.0f, 0.0f, 0.0f);
 
 Camera camera(Camera::LANDOBJECT);
-global_variable uint8_t heightMap[100] = { 
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
+global_variable uint8_t heightMap[64 * 64] = {};
 
 D3DXVECTOR3 Vector3Add(D3DXVECTOR3 v0, D3DXVECTOR3 v1)
 {
@@ -87,6 +86,15 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam)
         case WM_LBUTTONUP:
         {
             mouseClick = FALSE;
+        }break;
+        case WM_RBUTTONDOWN:
+        {
+            mouseRClick = TRUE;
+        }break;
+
+        case WM_RBUTTONUP:
+        {
+            mouseRClick = FALSE;
         }break;
         case WM_MOUSEMOVE:
         {
@@ -207,9 +215,9 @@ void SetUp(IDirect3DDevice9* device)
     Quad->Unlock();
      
     ZeroMemory(&quadMtrl, sizeof(quadMtrl));
-    quadMtrl.Diffuse  = D3DXCOLOR(1.0f, 0.0f, 0.0f, 1.0f); // red
-    quadMtrl.Ambient  = D3DXCOLOR(1.0f, 0.0f, 0.0f, 1.0f); // red
-    quadMtrl.Specular = D3DXCOLOR(1.0f, 0.0f, 0.0f, 1.0f); // red
+    quadMtrl.Diffuse  = D3DXCOLOR(0.5f, 0.0f, 0.5f, 1.0f); // red
+    quadMtrl.Ambient  = D3DXCOLOR(0.5f, 0.0f, 0.5f, 1.0f); // red
+    quadMtrl.Specular = D3DXCOLOR(0.5f, 0.0f, 0.5f, 1.0f); // red
     quadMtrl.Emissive = D3DXCOLOR(0.0f, 0.0f, 0.0f, 1.0f); // no emission
     quadMtrl.Power    = 5.0f;
 
@@ -221,7 +229,7 @@ void SetUp(IDirect3DDevice9* device)
     dir.Diffuse   = D3DXCOLOR(1.0f, 1.0f, 1.0f, 1.0f);
     dir.Specular  = D3DXCOLOR(1.0f, 1.0f, 1.0f, 1.0f) * 0.3f;
     dir.Ambient   = D3DXCOLOR(0.0f, 1.0f, 0.0f, 1.0f) * 0.6f;
-    dir.Direction = D3DXVECTOR3(1.0f, 1.0f, 0.0f);
+    dir.Direction = D3DXVECTOR3(1.0f, 0.5f, 0.0f);
     device->SetLight(0, &dir);
     device->LightEnable(0, true);
     device->SetRenderState(D3DRS_NORMALIZENORMALS, true);
@@ -234,7 +242,7 @@ void SetUp(IDirect3DDevice9* device)
     device->SetTransform(D3DTS_PROJECTION, &proj);
 }
 
-void Update(Terrain* terrain, IDirect3DDevice9* device, float deltaTime)
+void Update(RenderState& renderState, Terrain* terrain, IDirect3DDevice9* device, float deltaTime)
 {
 
     dirVector.x = mouseRMovement.x * 0.02;
@@ -242,19 +250,32 @@ void Update(Terrain* terrain, IDirect3DDevice9* device, float deltaTime)
     dirVector.z = mouseRMovement.y * 0.02;
 
     static float angle = 0.0f;
-
+    if(GetAsyncKeyState(VK_ESCAPE) & 0x8000f)
+        appRunnig = FALSE;
+    if(GetAsyncKeyState('1') & 0x8000f)
+        renderState = SOLID;
+    if(GetAsyncKeyState('2') & 0x8000f)
+        renderState = WIREFRAME;
+    if(GetAsyncKeyState('3') & 0x8000f)
+        renderState = VERTEXSHOW;
+    if(GetAsyncKeyState('4') & 0x8000f)
+        renderState = WIREFRAMEVERTEX;
+    if(GetAsyncKeyState('5') & 0x8000f)
+        renderState = WIREFRAMESOLID;
+    if(GetAsyncKeyState('6') & 0x8000f)
+        renderState = FULL;
 	if(GetAsyncKeyState('W') & 0x8000f)
-		camera.walk(4.0f * deltaTime);
+		camera.walk(50.0f * deltaTime);
 	if(GetAsyncKeyState('S') & 0x8000f)
-		camera.walk(-4.0f * deltaTime);
+		camera.walk(-50.0f * deltaTime);
 	if(GetAsyncKeyState('A') & 0x8000f)
-		camera.strafe(-4.0f * deltaTime);
+		camera.strafe(-50.0f * deltaTime);
 	if(GetAsyncKeyState('D') & 0x8000f)
-		camera.strafe(4.0f * deltaTime);
+		camera.strafe(50.0f * deltaTime);
 	if(GetAsyncKeyState('R') & 0x8000f)
-		camera.fly(4.0f * deltaTime);
+		camera.fly(50.0f * deltaTime);
 	if(GetAsyncKeyState('F') & 0x8000f)
-		camera.fly(-4.0f * deltaTime);
+		camera.fly(-50.0f * deltaTime);
 	if(GetAsyncKeyState(VK_UP) & 0x8000f)
 		camera.pitch(-1.0f * deltaTime);
 	if(GetAsyncKeyState(VK_DOWN) & 0x8000f)
@@ -292,66 +313,102 @@ void Update(Terrain* terrain, IDirect3DDevice9* device, float deltaTime)
     {
         mouseVertexPos.x = 0;
     }
-    else if(mouseVertexPos.x > 9)
+    else if(mouseVertexPos.x > terrain->numVertexRow - 1)
     {
-        mouseVertexPos.x = 9;
+        mouseVertexPos.x = terrain->numVertexRow - 1;
     }
 
     if(mouseVertexPos.y < 0)
     {
         mouseVertexPos.y = 0;
     }
-    else if(mouseVertexPos.y > 9)
+    else if(mouseVertexPos.y > terrain->numVertexCol - 1)
     {
-        mouseVertexPos.y = 9;
+        mouseVertexPos.y = terrain->numVertexCol - 1;
     }
     if(mouseClick == TRUE)
+    { 
+        UpdateHeightMapWithMousePos(terrain, mouseVertexPos.x, mouseVertexPos.y, true, deltaTime, device);
+        //mouseClick = FALSE;
+    }
+    if(mouseRClick == TRUE)
     {
-        UpdateHeightMapWithMousePos(terrain, mouseVertexPos.x, mouseVertexPos.y, true, device);
-        mouseClick = FALSE;
+        UpdateHeightMapWithMousePos(terrain, mouseVertexPos.x, mouseVertexPos.y, false, deltaTime, device);\
+        //mouseRClick = FALSE;
     }
 
 
 }
 
-void Render(Terrain* terrain, IDirect3DDevice9* device, float deltaTime)
+void Render(RenderState renderState, Terrain* terrain, IDirect3DDevice9* device, float deltaTime)
 {
     if(device)
     {
         device->Clear(0, 0, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xff4ddbff, 1.0f, 0);
 
         device->BeginScene();
-
-
+        D3DXMATRIX trans;
         device->SetRenderState(D3DRS_LIGHTING, true);
         device->SetStreamSource(0, terrain->VB, 0, sizeof(Vertex));
         device->SetFVF(Vertex::FVF);
         device->SetIndices(terrain->IB);
-        device->SetMaterial(&terrain->mtrl);    
-        D3DXMATRIX trans;
         D3DXMatrixTranslation(&trans, 0.0f, 0.0f, 0.0f);
+
+        if(renderState == SOLID || renderState == WIREFRAMESOLID || renderState == FULL)
+        {
+        // Draw the terrain:
+        device->SetMaterial(&terrain->mtrl);    
         device->SetTransform(D3DTS_WORLD, &trans);
         //device->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_FLAT);
+        device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
         device->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
         device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,
                                      0, 0,
                                      terrain->numVertices,
                                      0,
                                      terrain->numTrinalges);
-
-    
+        }
+        if(renderState == WIREFRAME || renderState == WIREFRAMEVERTEX ||
+           renderState == WIREFRAMESOLID || renderState == FULL)
+        {
+        // Draw the wireframe terrain
+        device->SetMaterial(&quadMtrl);
+        device->SetTransform(D3DTS_WORLD, &trans);
+        device->SetRenderState(D3DRS_FILLMODE, D3DFILL_WIREFRAME);
+        device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,
+                                     0, 0,
+                                     terrain->numVertices,
+                                     0,
+                                     terrain->numTrinalges);
+        }
+                                     
+        // Draw the MousePosition
+        device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
         device->SetRenderState(D3DRS_LIGHTING, false);
         device->SetStreamSource(0, Quad, 0, sizeof(QuadVertex));
         device->SetFVF(QuadVertex::FVF);
-        //device->SetMaterial(&quadMtrl);
+        D3DXMATRIX scaleMatrix;
+        D3DXMatrixScaling(&scaleMatrix, 0.6f, 0.0f, 0.6f);
         float height = getHeight(terrain, mouseVertexPos.x, mouseVertexPos.y);
-        char message[63];
-        sprintf(message, "mouseX: %f\n", height);
-        OutputDebugString(message);
-        D3DXMatrixTranslation(&trans, mouseWorldPos.x, height * terrain->heightScale, mouseWorldPos.z);
-        device->SetTransform(D3DTS_WORLD, &trans);
+        D3DXMatrixTranslation(&trans, mouseWorldPos.x, (height * terrain->heightScale) + 0.1f, mouseWorldPos.z);
+        D3DXMATRIX world = scaleMatrix * trans;
+        device->SetTransform(D3DTS_WORLD, &world);
         device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 2);
-
+        
+        if(renderState == VERTEXSHOW || renderState == WIREFRAMEVERTEX || renderState == FULL)
+        {
+        // Draw all the VertexPositions:
+        for(int z = 0; z < terrain->numVertexCol; z++)
+        {
+            for(int x = 0; x < terrain->numVertexRow; x++)
+            {
+                D3DXMatrixTranslation(&trans, x * terrain->cellSpacing, (terrain->heightMap[(z * terrain->numVertexRow) + x] * terrain->heightScale) + 0.001f, z * terrain->cellSpacing);
+                world = scaleMatrix * trans;
+                device->SetTransform(D3DTS_WORLD, &world);
+                device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 2);
+            }
+        }
+        }
 
         device->EndScene();
 
@@ -396,8 +453,10 @@ int WinMain(HINSTANCE hInstance,
 
     IDirect3DDevice9* device = 0;
     Terrain terrain;
-    SetMapInfo(&terrain, 10, 10, 5, 0.1f);
+    RenderState renderState = SOLID;
+    SetMapInfo(&terrain, 64, 64, 6, 0.5f);
     SetHeightMapInfo(heightMap, &terrain);
+    //GenSenBaseHeight(&terrain);
     if(InitializeD3D9(&device, hWnd) == 0)
     {
         OutputDebugString("D3D9 INITIALIZED\n");
@@ -442,8 +501,8 @@ int WinMain(HINSTANCE hInstance,
                     float currentTime = (float)timeGetTime();
                     float deltaTime = (currentTime - lastTime) * 0.001f;
 
-                    Update(&terrain, device, deltaTime);
-                    Render(&terrain, device, deltaTime);
+                    Update(renderState, &terrain, device, deltaTime);
+                    Render(renderState, &terrain, device, deltaTime);
 
                     lastTime = currentTime;    
                 }
@@ -452,13 +511,13 @@ int WinMain(HINSTANCE hInstance,
                     OutputDebugString("Device is NULL\n");
                 }          
             }
-        }  
+        }
+        //free(terrain.heightMap);  
     }
     else
     {
         return(1);
     }
-    
     return 0;
 }
 /*

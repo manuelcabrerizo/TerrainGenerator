@@ -38,9 +38,10 @@ void GenVertices(Terrain* terrain, IDirect3DDevice9* device);
 void GenIndices(Terrain* terrain, IDirect3DDevice9* device);
 D3DXVECTOR3 GetVertexNormal(int x, int y, Terrain* terrain);
 void UpdateHeightMapWithMousePos(Terrain* terrain, int x, int y,
-                                 BOOL value, IDirect3DDevice9* device);
+                                 BOOL value, float deltaTime, IDirect3DDevice9* device);
 int getHeightmapEntry(int row, int col, Terrain* terrain);
 float getHeight(Terrain* terrain, float x, float z);
 float Lerp(float a, float b, float t);
+void GenSenBaseHeight(Terrain* terrain);
 
 #endif
