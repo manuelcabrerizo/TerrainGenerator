@@ -45,8 +45,29 @@ uint8_t SetProperHeight(uint8_t value)
     return value;
 }
 
-void UpdateHeightMapWithMousePos(Terrain* terrain, int x, int y, BOOL value, float deltaTime, IDirect3DDevice9* device)
+
+Vertex CreateVertex(Terrain* terrain, int x, int y, float nx, float ny, float nz)
 {
+    int index = (y * terrain->numVertexRow) + x;
+    float uCoordIncrementSize = 1.0f / (float)terrain->numCellRow;
+    float vCoordIncrementSize = 1.0f / (float)terrain->numCellCol;
+    Vertex vertex = {
+        (float)x * (float)terrain->cellSpacing,
+        (float)terrain->heightMap[index] * terrain->heightScale,
+        (float)y * (float)terrain->cellSpacing,
+        nx,
+        ny,
+        nz,
+        (float)x * uCoordIncrementSize,
+        (float)y * vCoordIncrementSize
+    };
+    return vertex;
+}
+
+
+void UpdateHeightMapWithMousePos(Terrain* terrain, int x, int y, BOOL value, float deltaTime, IDirect3DDevice9* device, D3DXVECTOR3 directionToLight)
+{
+
     if(x >= terrain->numVertexRow)
         x = terrain->numVertexRow - 1;
     if(y >= terrain->numVertexCol)
@@ -76,24 +97,24 @@ void UpdateHeightMapWithMousePos(Terrain* terrain, int x, int y, BOOL value, flo
 
     if(value == TRUE)
     {
-        if(heightMapFloat[index] < 255)
+        if(heightMapFloat[index] < 254)
             heightMapFloat[index] += (incrementFactor * deltaTime);
-        if(heightMapFloat[index1] < 255)
+        if(heightMapFloat[index1] < 254)
             heightMapFloat[index1] += (incrementFactor * deltaTime);
-        if(heightMapFloat[index2] < 255)
+        if(heightMapFloat[index2] < 254)
             heightMapFloat[index2] += (incrementFactor * deltaTime);
-        if(heightMapFloat[index3] < 255)
+        if(heightMapFloat[index3] < 254)
             heightMapFloat[index3] += (incrementFactor * deltaTime);
     }
     else
     {
-        if(heightMapFloat[index] > 0)
+        if(heightMapFloat[index] > 1)
             heightMapFloat[index] -= (incrementFactor * deltaTime);
-        if(heightMapFloat[index1] > 0)
+        if(heightMapFloat[index1] > 1)
             heightMapFloat[index1] -= (incrementFactor * deltaTime);
-        if(heightMapFloat[index2] > 0)
+        if(heightMapFloat[index2] > 1)
             heightMapFloat[index2] -= (incrementFactor * deltaTime);
-        if(heightMapFloat[index3] > 0)
+        if(heightMapFloat[index3] > 1)
             heightMapFloat[index3] -= (incrementFactor * deltaTime);
     }
 
@@ -110,39 +131,10 @@ void UpdateHeightMapWithMousePos(Terrain* terrain, int x, int y, BOOL value, flo
     D3DXVECTOR3 normals2 = GetVertexNormal(x, y + 1, terrain);
     D3DXVECTOR3 normals3 = GetVertexNormal(x + 1, y + 1, terrain);
 
-    Vertex vertex = {
-        (float)x * (float)terrain->cellSpacing,
-        (float)terrain->heightMap[index] * terrain->heightScale,
-        (float)y * (float)terrain->cellSpacing,
-        normals.x,
-        normals.y,
-        normals.z
-    };
-    Vertex vertex1 = {
-        (float)(x + 1) * (float)terrain->cellSpacing,
-        (float)terrain->heightMap[index1] * terrain->heightScale,
-        (float)y * (float)terrain->cellSpacing,
-        normals1.x,
-        normals1.y,
-        normals1.z
-    };
-    Vertex vertex2 = {
-        (float)x * (float)terrain->cellSpacing,
-        (float)terrain->heightMap[index2] * terrain->heightScale,
-        (float)(y + 1) * (float)terrain->cellSpacing,
-        normals2.x,
-        normals2.y,
-        normals2.z
-    };
-    Vertex vertex3 = {
-        (float)(x + 1) * (float)terrain->cellSpacing,
-        (float)terrain->heightMap[index3] * terrain->heightScale,
-        (float)(y + 1) * (float)terrain->cellSpacing,
-        normals3.x,
-        normals3.y,
-        normals3.z
-    };
-
+    Vertex vertex =  CreateVertex(terrain, x, y, normals.x, normals.y, normals.z);
+    Vertex vertex1 = CreateVertex(terrain, (x + 1), y, normals1.x, normals1.y, normals1.z);
+    Vertex vertex2 = CreateVertex(terrain, x, (y + 1), normals2.x, normals2.y, normals2.z);
+    Vertex vertex3 = CreateVertex(terrain, (x + 1), (y + 1), normals3.x, normals3.y, normals3.z);
 
     v[index] = vertex;
     v[index1] = vertex1;
@@ -150,6 +142,8 @@ void UpdateHeightMapWithMousePos(Terrain* terrain, int x, int y, BOOL value, flo
     v[index3] = vertex3;
 
     terrain->VB->Unlock();
+
+    UpdateTexture(x, y, terrain, directionToLight);
 }
 
 void SetHeightMapInfo(uint8_t height[], Terrain* terrain)
@@ -171,11 +165,12 @@ void GenVertices(Terrain* terrain, IDirect3DDevice9* device)
         OutputDebugString("LOADING VB\n");
     }
     device->CreateVertexBuffer(terrain->numVertices * sizeof(Vertex),
-                               D3DUSAGE_WRITEONLY,
+                               D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY,
                                Vertex::FVF,
-                               D3DPOOL_MANAGED,
+                               D3DPOOL_DEFAULT,
                                &terrain->VB,
                                0);
+
     Vertex* v = 0;    
     terrain->VB->Lock(0, 0, (void**)&v, 0);
     for(int y = 0; y < terrain->numVertexCol; y++)
@@ -183,14 +178,7 @@ void GenVertices(Terrain* terrain, IDirect3DDevice9* device)
        for(int x = 0; x < terrain->numVertexRow; x++)
        {
             D3DXVECTOR3 normals = GetVertexNormal(x, y, terrain);
-            Vertex vertex = {
-                (float)x * (float)terrain->cellSpacing,
-                (float)terrain->heightMap[(y * terrain->numVertexRow) + x] * terrain->heightScale,
-                (float)y * (float)terrain->cellSpacing,
-                normals.x,
-                normals.y,
-                normals.z
-            };
+            Vertex vertex = CreateVertex(terrain, x, y, normals.x, normals.y, normals.z);
             v[(y * terrain->numVertexRow) + x] = vertex;
        }  
     }
@@ -251,6 +239,145 @@ float GetYComponent(int x, int z, Terrain* terrain)
         z = 0; 
     return (float)terrain->heightMap[(z * terrain->numVertexRow) + x];
 }
+
+D3DXCOLOR HeightColor(Terrain* terrain, int x, int y)
+{
+    D3DXCOLOR c;
+    float height = GetYComponent(x, y, terrain);
+
+    if(height < 2.0f ) c = D3DCOLOR_XRGB(124, 197, 118);
+    else if(height < 127.5f) c = D3DCOLOR_XRGB(0, 166, 81);
+    else if(height < 170.0f) c = D3DCOLOR_XRGB(25, 123, 48);
+    else if(height < 212.5f) c = D3DCOLOR_XRGB(115, 100,  87);
+    else                     c = D3DCOLOR_XRGB(255, 255, 255);
+    return c;
+
+}
+
+
+void GenerateTexture(Terrain* terrain, IDirect3DDevice9* device,  D3DXVECTOR3 directionToLight)
+{
+    HRESULT hr = 0;
+
+    int texWidth = terrain->numCellRow;
+    int texHeight = terrain->numCellCol;
+
+    hr = D3DXCreateTexture(
+            device,
+            texWidth, texHeight,
+            0, 0,
+            D3DFMT_X8R8G8B8,
+            D3DPOOL_MANAGED,
+            &terrain->tex);
+
+    if(FAILED(hr))
+    {
+        OutputDebugString("FAILED creating TEXTURE\n");
+        return;
+    }
+    D3DSURFACE_DESC textureDesc;
+    terrain->tex->GetLevelDesc(0, &textureDesc);
+
+    if(textureDesc.Format != D3DFMT_X8R8G8B8)
+    {
+        OutputDebugString("FAILED seting the FORMAT of the TEXTURE\n");
+        return;
+    }
+
+    D3DLOCKED_RECT lockedRect;
+    terrain->tex->LockRect(0, &lockedRect, 0, 0);
+    DWORD* imageData = (DWORD*)lockedRect.pBits;
+    
+    for(int y = 0; y < texHeight; y++)
+    {
+        for(int x = 0; x < texWidth; x++)
+        {
+            imageData[(y * lockedRect.Pitch / 4) + x] = HeightColor(terrain, x, y);
+        }
+    }
+    terrain->tex->UnlockRect(0);
+    LightTerrain(terrain, directionToLight);
+    hr = D3DXFilterTexture(terrain->tex, 0, 0, D3DX_DEFAULT);
+    if(FAILED(hr))
+    {
+        OutputDebugString("FAILED FILTERING the TEXTURE\n");
+    }
+}
+void UpdateTexture(int x, int y, Terrain* terrain,  D3DXVECTOR3 directionToLight)
+{
+    int texWidth = terrain->numCellRow;
+    int texHeight = terrain->numCellCol;
+    D3DLOCKED_RECT lockedRect;
+    terrain->tex->LockRect(0, &lockedRect, 0, 0);
+    DWORD* imageData = (DWORD*)lockedRect.pBits;
+    imageData[(y * lockedRect.Pitch / 4) + x] = HeightColor(terrain, x, y);
+    terrain->tex->UnlockRect(0); 
+    UpdateLightTerrain(x, y, terrain, directionToLight);
+}
+
+void UpdateLightTerrain(int x, int y, Terrain* terrain, D3DXVECTOR3 directionToLight)
+{
+    HRESULT hr = 0;
+    D3DSURFACE_DESC textureDesc;
+    terrain->tex->GetLevelDesc(0, &textureDesc);
+	if( textureDesc.Format != D3DFMT_X8R8G8B8 )
+    {
+		return;
+    }
+    D3DLOCKED_RECT lockedRect;
+    terrain->tex->LockRect(0, &lockedRect, 0, 0);
+    DWORD* imageData = (DWORD*)lockedRect.pBits;
+    int index = (y * lockedRect.Pitch / 4) + x;
+    D3DXCOLOR c(imageData[index]);
+    c *= ComputeShade(terrain, x, y, directionToLight);
+    imageData[index] = (D3DXCOLOR)c;  
+    terrain->tex->UnlockRect(0);
+}
+
+
+void LightTerrain(Terrain* terrain, D3DXVECTOR3 directionToLight)
+{
+    HRESULT hr = 0;
+    D3DSURFACE_DESC textureDesc;
+    terrain->tex->GetLevelDesc(0, &textureDesc);
+	if( textureDesc.Format != D3DFMT_X8R8G8B8 )
+    {
+		return;
+    }
+    D3DLOCKED_RECT lockedRect;
+    terrain->tex->LockRect(0, &lockedRect, 0, 0);
+    DWORD* imageData = (DWORD*)lockedRect.pBits;
+    for(int j = 0; j < textureDesc.Height; j++)
+    {
+        for(int i = 0; i < textureDesc.Width; i++)
+        {
+            int index = (i * lockedRect.Pitch / 4) + j;
+            D3DXCOLOR c(imageData[index]);
+            c *= ComputeShade(terrain, j, i, directionToLight);
+            imageData[index] = (D3DXCOLOR)c;  
+        }
+    }
+    terrain->tex->UnlockRect(0);
+}
+
+float ComputeShade(Terrain* terrain, int x, int y, D3DXVECTOR3 directionToLight)
+{
+    float heightA = GetYComponent(x, y, terrain);
+    float heightB = GetYComponent(x + 1, y, terrain);
+    float heightC = GetYComponent(x, y + 1, terrain);
+
+    D3DXVECTOR3 u((float)terrain->cellSpacing, heightB - heightA, 0.0f);
+    D3DXVECTOR3 v(0.0f, heightC - heightA, (float)terrain->cellSpacing);
+
+    D3DXVECTOR3 n;
+    D3DXVec3Cross(&n, &u, &v);
+    D3DXVec3Normalize(&n, &n);
+	float cosine = -D3DXVec3Dot(&n, &directionToLight);
+	if(cosine < 0.0f)
+		cosine = 0.0f;
+	return cosine;
+}
+
 
 D3DXVECTOR3 GetVertexNormal(int x, int y, Terrain* terrain)
 {
@@ -317,16 +444,4 @@ int getHeightmapEntry(int row, int col, Terrain* terrain)
 }
 
 
-void GenSenBaseHeight(Terrain* terrain)
-{
-    for(int y = 0; y < terrain->numVertexCol; y++)
-    {
-        for(int x = 0; x < terrain->numVertexRow; x++)
-        {
-            int index = (y * terrain->numVertexRow) + x;
 
-            terrain->heightMap[index] =  (uint8_t)(5 * (sin(y)+cos(x))); 
-        }  
-    }
-
-}

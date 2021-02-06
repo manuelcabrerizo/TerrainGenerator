@@ -9,9 +9,9 @@
 struct Vertex
 {
     float  x,  y,  z;
-    //D3DCOLOR color;
     float nx, ny, nz;
-    static const DWORD FVF = D3DFVF_XYZ /* | D3DFVF_DIFFUSE */| D3DFVF_NORMAL; 
+    float u, v;
+    static const DWORD FVF = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_TEX1; 
 };
 
 struct Terrain 
@@ -27,6 +27,7 @@ struct Terrain
     uint8_t* heightMap;
     IDirect3DVertexBuffer9* VB;
     IDirect3DIndexBuffer9*  IB;
+    IDirect3DTexture9* tex;
     D3DMATERIAL9 mtrl;
 };
 
@@ -38,10 +39,17 @@ void GenVertices(Terrain* terrain, IDirect3DDevice9* device);
 void GenIndices(Terrain* terrain, IDirect3DDevice9* device);
 D3DXVECTOR3 GetVertexNormal(int x, int y, Terrain* terrain);
 void UpdateHeightMapWithMousePos(Terrain* terrain, int x, int y,
-                                 BOOL value, float deltaTime, IDirect3DDevice9* device);
+                                 BOOL value, float deltaTime, IDirect3DDevice9* device,
+                                 D3DXVECTOR3 directionToLight);
 int getHeightmapEntry(int row, int col, Terrain* terrain);
 float getHeight(Terrain* terrain, float x, float z);
 float Lerp(float a, float b, float t);
 void GenSenBaseHeight(Terrain* terrain);
+void GenerateTexture(Terrain* terrain, IDirect3DDevice9* device, D3DXVECTOR3 directionToLight);
+void UpdateTexture(int x, int y, Terrain* terrain, D3DXVECTOR3 directionToLight);
+void LightTerrain(Terrain* terrain, D3DXVECTOR3 directionToLight);
+void UpdateLightTerrain(int x, int y, Terrain* terrain, D3DXVECTOR3 directionToLight);
+float ComputeShade(Terrain* terrain, int x, int y, D3DXVECTOR3 directionToLight);
+
 
 #endif
