@@ -4,7 +4,7 @@
 #include "mesh.h"
 
 
-void LoadOBJFile(IDirect3DDevice9* device, Mesh* mesh, const char* filePhat)
+void LoadOBJFile(IDirect3DDevice9* device, Mesh* mesh, const char* filePhat, const char* texFileName)
 {
     mesh->numVertices  = 0;
     mesh->numIndex     = 0;
@@ -42,8 +42,7 @@ void LoadOBJFile(IDirect3DDevice9* device, Mesh* mesh, const char* filePhat)
             mesh->numIndex++;
         }
     } 
-    // we allocate memory for the model
-    //VirtualFree(particleSystem->particles, 0, MEM_RELEASE); 
+    // we allocate memory for the model 
     mesh->vertices      = (D3DXVECTOR3*)VirtualAlloc(0, mesh->numVertices  * sizeof(D3DXVECTOR3), MEM_COMMIT, PAGE_READWRITE);
     mesh->textureCoords = (D3DXVECTOR2*)VirtualAlloc(0, mesh->numTexCoords * sizeof(D3DXVECTOR2), MEM_COMMIT, PAGE_READWRITE);
     mesh->normals       = (D3DXVECTOR3*)VirtualAlloc(0, mesh->numNormals   * sizeof(D3DXVECTOR3), MEM_COMMIT, PAGE_READWRITE);
@@ -162,15 +161,29 @@ void LoadOBJFile(IDirect3DDevice9* device, Mesh* mesh, const char* filePhat)
             mesh->vertexBuffer[i].vertice.x,
             mesh->vertexBuffer[i].vertice.y,
             mesh->vertexBuffer[i].vertice.z,
-            mesh->vertexBuffer[i].textureCoord.x,
-            mesh->vertexBuffer[i].textureCoord.y,
             mesh->vertexBuffer[i].normal.x,
             mesh->vertexBuffer[i].normal.y,
             mesh->vertexBuffer[i].normal.z,
+            mesh->vertexBuffer[i].textureCoord.x,
+            1 - mesh->vertexBuffer[i].textureCoord.y,
         }; 
         v[i] = vertex;       
     }
     mesh->D3DvertexBuffer->Unlock();
+
+    VirtualFree(mesh->vertices, 0, MEM_RELEASE); 
+    VirtualFree(mesh->textureCoords, 0, MEM_RELEASE);
+    VirtualFree(mesh->normals, 0, MEM_RELEASE); 
+    VirtualFree(mesh->vertexBuffer, 0, MEM_RELEASE);
+    VirtualFree(mesh->vertexIndex, 0, MEM_RELEASE);
+    VirtualFree(mesh->textureIndex, 0, MEM_RELEASE);
+    VirtualFree(mesh->normalIndex, 0, MEM_RELEASE); 
+
+    D3DXCreateTextureFromFile(
+            device,
+            texFileName, 
+            &mesh->tex);
+
 }
 
 

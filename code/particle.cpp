@@ -92,6 +92,14 @@ void PreRender(ParticleSystem* particleSystem, IDirect3DDevice9* device)
 	device->SetRenderState(D3DRS_POINTSCALE_A, FloatToDword(0.0f));
 	device->SetRenderState(D3DRS_POINTSCALE_B, FloatToDword(0.0f));
 	device->SetRenderState(D3DRS_POINTSCALE_C, FloatToDword(1.0f));
+
+	// use alpha from texture
+	device->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+	device->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+
+	device->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
+	device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+    device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
 }
 
 void PostRender(ParticleSystem* particleSystem, IDirect3DDevice9* device)
@@ -106,7 +114,7 @@ void PsRender(ParticleSystem* particleSystem, IDirect3DDevice9* device)
 {
     PreRender(particleSystem, device);
 
-    device->SetTexture(0, particleSystem->tex);
+    device->SetTexture(0, 0);
     device->SetFVF(Particle::FVF);
     device->SetStreamSource(0, particleSystem->vb, 0, sizeof(Particle));
 

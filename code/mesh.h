@@ -7,10 +7,10 @@
 
 struct MeshVertex
 {
-    float  x,  y,  z;
-    float u, v;
+    float  x,  y,  z; 
     float nx, ny, nz;
-    static const DWORD FVF = D3DFVF_XYZ | D3DFVF_TEX1 | D3DFVF_NORMAL; 
+    float u, v;
+    static const DWORD FVF = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_TEX1;
 };
 
 struct IndexBuffer
@@ -39,10 +39,14 @@ struct Mesh
     IndexBuffer* textureIndex;
     IndexBuffer* normalIndex;
 
-    VertexBuffer* vertexBuffer;
+    VertexBuffer*           vertexBuffer;
     IDirect3DVertexBuffer9* D3DvertexBuffer;
+    IDirect3DTexture9*      tex;
 };
 
-void LoadOBJFile(IDirect3DDevice9* device, Mesh* mesh, const char* filePhat);
+void LoadOBJFile(IDirect3DDevice9* device,
+                 Mesh* mesh,
+                 const char* filePhat,
+                 const char* texFileName);
 
 #endif

@@ -8,11 +8,11 @@
 #include "mesh.h"
 
 #define global_variable static
-#define WNDWIDTH 1920
-#define WNDHEIGHT 1080
+//#define WNDWIDTH 1920
+//#define WNDHEIGHT 1080
 
-//#define WNDWIDTH 1280
-//#define WNDHEIGHT 720
+#define WNDWIDTH 1280
+#define WNDHEIGHT 720
 
 struct Vec2
 {
@@ -163,7 +163,7 @@ int InitializeD3D9(IDirect3DDevice9** device, HWND hWnd)
 	d3dpp.MultiSampleQuality         = 0;
 	d3dpp.SwapEffect                 = D3DSWAPEFFECT_DISCARD; 
 	d3dpp.hDeviceWindow              = hWnd;
-	d3dpp.Windowed                   = false;
+	d3dpp.Windowed                   = true;
 	d3dpp.EnableAutoDepthStencil     = true; 
 	d3dpp.AutoDepthStencilFormat     = D3DFMT_D24S8;
 	d3dpp.Flags                      = 0;
@@ -367,14 +367,21 @@ void Render(RenderState renderState, Mesh* mesh, ParticleSystem* particleSystem,
 
         device->Clear(0, 0, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0x00000055, 1.0f, 0);
         device->BeginScene();
+        
 
+        device->SetRenderState(D3DRS_LIGHTING, false);
+        device->SetTexture(0, mesh->tex);
         device->SetStreamSource(0, mesh->D3DvertexBuffer, 0, sizeof(MeshVertex));
         device->SetFVF(MeshVertex::FVF);
-        D3DXMatrixTranslation(&trans, 80.0f, 1.0f, 100.0f);
-        D3DXMatrixScaling(&scaleMatrix, 8.0f, 8.0f, 8.0f);
-        world = scaleMatrix * trans;
-        device->SetTransform(D3DTS_WORLD, &world);
-        device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, (mesh->numIndex * 3));
+        for(int i = 4; i < 20; i += 4)
+        {
+            D3DXMatrixTranslation(&trans, i * terrain->cellSpacing, (terrain->heightMap[(i * terrain->numVertexRow) + i] * terrain->heightScale) - 0.5f, i * terrain->cellSpacing); 
+            D3DXMatrixScaling(&scaleMatrix, 1.0f, 1.0f, 1.0f);
+            world = scaleMatrix * trans;
+            device->SetTransform(D3DTS_WORLD, &world);
+            device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, mesh->numIndex);
+        }
+        device->SetTexture(0, 0);
 
 
         device->SetRenderState(D3DRS_LIGHTING, false);
@@ -406,7 +413,7 @@ void Render(RenderState renderState, Mesh* mesh, ParticleSystem* particleSystem,
         device->SetRenderState(D3DRS_LIGHTING, true);
         device->SetMaterial(&quadMtrl);
         device->SetTransform(D3DTS_WORLD, &trans);
-        device->SetRenderState(D3DRS_FILLMODE, D3DFILL_WIREFRAME);
+        device->SetRenderState(D3DRS_FILLMODE, D3DFILL_WIREFRAME); 
         device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,
                                      0, 0,
                                      terrain->numVertices,
@@ -419,6 +426,8 @@ void Render(RenderState renderState, Mesh* mesh, ParticleSystem* particleSystem,
         //D3DXMatrixTranslation(&tranforParticles, 400.0f, 100.0f, 0.0f);
         //device->SetTransform(D3DTS_WORLD, &tranforParticles);
         PsRender(particleSystem, device);
+        device->SetTexture(0, 0);
+
                                      
         // Draw the MousePosition
         device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
@@ -515,9 +524,9 @@ int WinMain(HINSTANCE hInstance,
             boundingBox.min = D3DXVECTOR3( 0.0f,    0.0f,  0.0f); 
             
             InitSnow(&ps, &boundingBox, 2048);
-            Init(&ps, device, "./snowball.bmp");
+            Init(&ps, device, "./data/snowball.bmp");
 
-            LoadOBJFile(device, &avion, "./data/f22.obj");
+            LoadOBJFile(device, &avion, "./data/tree2.obj", "./data/drone.bmp");
 
         }
     }
