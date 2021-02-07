@@ -187,3 +187,7 @@ void LoadOBJFile(IDirect3DDevice9* device, Mesh* mesh, const char* filePhat, con
 }
 
 
+
+
+
+

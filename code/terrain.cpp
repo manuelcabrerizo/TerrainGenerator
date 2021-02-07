@@ -4,7 +4,31 @@
 
 #define global_variable static
 
-global_variable float heightMapFloat[64 * 64] = {};
+global_variable float heightMapFloat[256 * 256] = {};
+
+
+texture_t LoadBMP(const char* filename)
+{
+    bitmapHeader header;
+    texture_t texture;
+    FILE* file = fopen(filename, "rb");
+    if(file != NULL)
+    {
+        fread(&header, sizeof(header), 1, file);
+        texture.pixels = (uint32_t*)malloc(sizeof(uint32_t) * header.width * header.height);
+        fseek(file, header.bitmapOffset, SEEK_SET);
+        fread(texture.pixels, sizeof(uint32_t), header.width * header.height, file);
+        texture.width = header.width;
+        texture.height = header.height;
+    }
+    else
+    {
+        printf("cannot read the file %s\n", filename);
+    }
+    fclose(file);
+    return texture;
+}
+
 
 void SetMapInfo(Terrain* terrain, int numVrow, int numVcol, int cellSpace, float heightS)
 {
@@ -47,7 +71,7 @@ uint8_t SetProperHeight(uint8_t value)
 
 
 Vertex CreateVertex(Terrain* terrain, int x, int y, float nx, float ny, float nz)
-{
+{   
     int index = (y * terrain->numVertexRow) + x;
     float uCoordIncrementSize = 1.0f / (float)terrain->numCellRow;
     float vCoordIncrementSize = 1.0f / (float)terrain->numCellCol;
@@ -148,12 +172,18 @@ void UpdateHeightMapWithMousePos(Terrain* terrain, int x, int y, BOOL value, flo
 
 void SetHeightMapInfo(uint8_t height[], Terrain* terrain)
 {
+
+    texture_t baseMap = LoadBMP("./data/terrain.bmp");
+
     for(int y = 0; y < terrain->numVertexCol; y++)
     {
         for(int x = 0; x < terrain->numVertexRow; x++)
         {
             int index = (y * terrain->numVertexRow) + x;
-            terrain->heightMap[index] = height[index]; 
+            uint32_t pixel = (uint32_t)baseMap.pixels[index];
+            uint8_t no_alpha = (uint8_t)(pixel & 0xFFFFFF);
+            terrain->heightMap[index] = no_alpha;
+            heightMapFloat[index] = (float)no_alpha;
         }  
     }
 }
@@ -245,10 +275,10 @@ D3DXCOLOR HeightColor(Terrain* terrain, int x, int y)
     D3DXCOLOR c;
     float height = GetYComponent(x, y, terrain);
 
-    if(height < 2.0f ) c = D3DCOLOR_XRGB(124, 197, 118);
-    else if(height < 127.5f) c = D3DCOLOR_XRGB(0, 166, 81);
-    else if(height < 170.0f) c = D3DCOLOR_XRGB(25, 123, 48);
-    else if(height < 212.5f) c = D3DCOLOR_XRGB(115, 100,  87);
+    if(height < 10.0f ) c = D3DCOLOR_XRGB(124, 197, 118);
+    else if(height < 40.5f) c = D3DCOLOR_XRGB(0, 166, 81);
+    else if(height < 60.0f) c = D3DCOLOR_XRGB(25, 123, 48);
+    else if(height < 100.5f) c = D3DCOLOR_XRGB(115, 100,  87);
     else                     c = D3DCOLOR_XRGB(255, 255, 255);
     return c;
 
@@ -328,7 +358,27 @@ void UpdateLightTerrain(int x, int y, Terrain* terrain, D3DXVECTOR3 directionToL
     terrain->tex->LockRect(0, &lockedRect, 0, 0);
     DWORD* imageData = (DWORD*)lockedRect.pBits;
     int index = (y * lockedRect.Pitch / 4) + x;
-    D3DXCOLOR c(imageData[index]);
+    D3DXCOLOR c;
+    float height = GetYComponent(x, y, terrain);
+    if(height < 10.0f )
+    {
+        c = D3DCOLOR_XRGB(124, 197, 118);
+    }
+    else if(height < 40.5f)
+    {
+        c = D3DCOLOR_XRGB(0, 166, 81);
+    }
+    else if(height < 60.0f)
+    {
+        c = D3DCOLOR_XRGB(25, 123, 48);
+    }
+    else if(height < 100.5f){
+        c = D3DCOLOR_XRGB(115, 100,  87);
+    }
+    else
+    {
+        c = D3DCOLOR_XRGB(255, 255, 255);
+    }
     c *= ComputeShade(terrain, x, y, directionToLight);
     imageData[index] = (D3DXCOLOR)c;  
     terrain->tex->UnlockRect(0);

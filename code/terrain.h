@@ -31,6 +31,31 @@ struct Terrain
     D3DMATERIAL9 mtrl;
 };
 
+
+#pragma pack(push, 1)
+struct bitmapHeader
+{
+    uint16_t fileType;
+    uint32_t fileSize;
+    uint16_t reserved1;
+    uint16_t reserved2;
+    uint32_t bitmapOffset;
+    uint32_t size;
+    int32_t width;
+    int32_t height;
+    uint16_t planes;
+    uint16_t bitsPerPixel;
+};
+#pragma pack(pop)
+
+struct texture_t
+{
+    uint32_t* pixels;
+    int width;
+    int height;
+};
+
+
 void SetMapInfo(Terrain* terrain,
                 int numVrow, int numVcol,
                 int cellSpace, float heightS);
@@ -50,6 +75,7 @@ void UpdateTexture(int x, int y, Terrain* terrain, D3DXVECTOR3 directionToLight)
 void LightTerrain(Terrain* terrain, D3DXVECTOR3 directionToLight);
 void UpdateLightTerrain(int x, int y, Terrain* terrain, D3DXVECTOR3 directionToLight);
 float ComputeShade(Terrain* terrain, int x, int y, D3DXVECTOR3 directionToLight);
+texture_t LoadBMP(const char* filename);
 
 
 #endif

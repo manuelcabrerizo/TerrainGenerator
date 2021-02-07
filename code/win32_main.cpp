@@ -8,11 +8,11 @@
 #include "mesh.h"
 
 #define global_variable static
-//#define WNDWIDTH 1920
-//#define WNDHEIGHT 1080
+#define WNDWIDTH 1920
+#define WNDHEIGHT 1080
 
-#define WNDWIDTH 1280
-#define WNDHEIGHT 720
+//#define WNDWIDTH 1280
+//#define WNDHEIGHT 720
 
 struct Vec2
 {
@@ -50,6 +50,7 @@ D3DXVECTOR3 dirVector(0.0f, 0.0f, 0.0f);
 D3DXVECTOR3 lightDir(0.5f, 1.0f, 0.0f);
 
 Camera camera(Camera::LANDOBJECT);
+
 global_variable uint8_t heightMap[64 * 64] = {};
 
 global_variable ParticleSystem ps;
@@ -163,7 +164,7 @@ int InitializeD3D9(IDirect3DDevice9** device, HWND hWnd)
 	d3dpp.MultiSampleQuality         = 0;
 	d3dpp.SwapEffect                 = D3DSWAPEFFECT_DISCARD; 
 	d3dpp.hDeviceWindow              = hWnd;
-	d3dpp.Windowed                   = true;
+	d3dpp.Windowed                   = false;
 	d3dpp.EnableAutoDepthStencil     = true; 
 	d3dpp.AutoDepthStencilFormat     = D3DFMT_D24S8;
 	d3dpp.Flags                      = 0;
@@ -224,9 +225,9 @@ void SetUp(IDirect3DDevice9* device)
     Quad->Unlock();
      
     ZeroMemory(&quadMtrl, sizeof(quadMtrl));
-    quadMtrl.Diffuse  = D3DXCOLOR(0.5f, 0.0f, 0.5f, 1.0f); // red
-    quadMtrl.Ambient  = D3DXCOLOR(0.5f, 0.0f, 0.5f, 1.0f); // red
-    quadMtrl.Specular = D3DXCOLOR(0.5f, 0.0f, 0.5f, 1.0f); // red
+    quadMtrl.Diffuse  = D3DXCOLOR(0.6f, 0.0f, 0.0f, 1.0f); // red
+    quadMtrl.Ambient  = D3DXCOLOR(0.6f, 0.3f, 0.2f, 1.0f); // red
+    quadMtrl.Specular = D3DXCOLOR(0.6f, 0.3f, 0.2f, 1.0f); // red
     quadMtrl.Emissive = D3DXCOLOR(0.0f, 0.0f, 0.0f, 1.0f); // no emission
     quadMtrl.Power    = 5.0f;
 
@@ -238,7 +239,7 @@ void SetUp(IDirect3DDevice9* device)
     dir.Diffuse   = D3DXCOLOR(1.0f, 1.0f, 1.0f, 1.0f);
     dir.Specular  = D3DXCOLOR(1.0f, 1.0f, 1.0f, 1.0f) * 0.3f;
     dir.Ambient   = D3DXCOLOR(0.0f, 1.0f, 0.0f, 1.0f) * 0.6f;
-    dir.Direction = D3DXVECTOR3(1.0f, 0.5f, 0.0f);
+    dir.Direction = D3DXVECTOR3(0.5f, 1.0f, 0.0f);
     device->SetLight(0, &dir);
     device->LightEnable(0, true);
     device->SetRenderState(D3DRS_NORMALIZENORMALS, true);
@@ -263,7 +264,7 @@ void Update(RenderState& renderState, ParticleSystem* particleSystem, Terrain* t
     dirVector.z = mouseRMovement.y * 0.02;
 
     static float angle = 0.0f;
-    
+    float speed = 100.0f;
     if(GetAsyncKeyState(VK_ESCAPE) & 0x8000f)
         appRunnig = FALSE;
     if(GetAsyncKeyState('1') & 0x8000f)
@@ -279,17 +280,17 @@ void Update(RenderState& renderState, ParticleSystem* particleSystem, Terrain* t
     if(GetAsyncKeyState('6') & 0x8000f)
         renderState = FULL;
 	if(GetAsyncKeyState('W') & 0x8000f)
-		camera.walk(50.0f * deltaTime);
+		camera.walk(speed * deltaTime);
 	if(GetAsyncKeyState('S') & 0x8000f)
-		camera.walk(-50.0f * deltaTime);
+		camera.walk(-speed * deltaTime);
 	if(GetAsyncKeyState('A') & 0x8000f)
-		camera.strafe(-50.0f * deltaTime);
+		camera.strafe(-speed * deltaTime);
 	if(GetAsyncKeyState('D') & 0x8000f)
-		camera.strafe(50.0f * deltaTime);
+		camera.strafe(speed * deltaTime);
 	if(GetAsyncKeyState('R') & 0x8000f)
-		camera.fly(50.0f * deltaTime);
+		camera.fly(speed * deltaTime);
 	if(GetAsyncKeyState('F') & 0x8000f)
-		camera.fly(-50.0f * deltaTime);
+		camera.fly(-speed * deltaTime);
 	if(GetAsyncKeyState(VK_UP) & 0x8000f)
 		camera.pitch(-1.0f * deltaTime);
 	if(GetAsyncKeyState(VK_DOWN) & 0x8000f)
@@ -370,16 +371,19 @@ void Render(RenderState renderState, Mesh* mesh, ParticleSystem* particleSystem,
         
 
         device->SetRenderState(D3DRS_LIGHTING, false);
-        device->SetTexture(0, mesh->tex);
+        device->SetTexture(0, mesh->tex); 
         device->SetStreamSource(0, mesh->D3DvertexBuffer, 0, sizeof(MeshVertex));
         device->SetFVF(MeshVertex::FVF);
-        for(int i = 4; i < 20; i += 4)
+        for(int y = 4; y < terrain->numVertexCol; y += 8)
         {
-            D3DXMatrixTranslation(&trans, i * terrain->cellSpacing, (terrain->heightMap[(i * terrain->numVertexRow) + i] * terrain->heightScale) - 0.5f, i * terrain->cellSpacing); 
-            D3DXMatrixScaling(&scaleMatrix, 1.0f, 1.0f, 1.0f);
-            world = scaleMatrix * trans;
-            device->SetTransform(D3DTS_WORLD, &world);
-            device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, mesh->numIndex);
+            for(int x = 4; x < terrain->numVertexRow; x += 8)
+            {
+                D3DXMatrixTranslation(&trans, x * terrain->cellSpacing, (terrain->heightMap[(y * terrain->numVertexRow) + x] * terrain->heightScale)  - 0.5f, y * terrain->cellSpacing); 
+                D3DXMatrixScaling(&scaleMatrix, 8.0f, 8.0f, 8.0f);
+                world = scaleMatrix * trans;
+                device->SetTransform(D3DTS_WORLD, &world);
+                device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, mesh->numIndex);
+            }
         }
         device->SetTexture(0, 0);
 
@@ -502,35 +506,10 @@ int WinMain(HINSTANCE hInstance,
     IDirect3DDevice9* device = 0;
     Terrain terrain;
     RenderState renderState = SOLID;
-    SetMapInfo(&terrain, 64, 64, 6, 0.2f);
+    SetMapInfo(&terrain, 256, 256, 10, 1.0f);
     SetHeightMapInfo(heightMap, &terrain);
     Mesh avion;
-    
-    if(InitializeD3D9(&device, hWnd) == 0)
-    {
-        OutputDebugString("D3D9 INITIALIZED\n");
-        if(device == NULL)
-        {
-            OutputDebugString("device is NULL ptr\n");
-        }
-        else
-        {
-            SetUp(device);  
-            GenVertices(&terrain, device);
-            GenIndices(&terrain, device);
-            GenerateTexture(&terrain, device, lightDir);
-            
-            boundingBox.max = D3DXVECTOR3( 350.0f,  100.0f,  350.0f);
-            boundingBox.min = D3DXVECTOR3( 0.0f,    0.0f,  0.0f); 
-            
-            InitSnow(&ps, &boundingBox, 2048);
-            Init(&ps, device, "./data/snowball.bmp");
-
-            LoadOBJFile(device, &avion, "./data/tree2.obj", "./data/drone.bmp");
-
-        }
-    }
-    
+        
     if(hWnd)
     {
         appRunnig = TRUE;
@@ -540,6 +519,31 @@ int WinMain(HINSTANCE hInstance,
         mouseDefaultPos.x = WNDWIDTH / 2.0f;
         mouseDefaultPos.y = WNDHEIGHT / 2.0f;
         SetCursorPos(mouseDefaultPos.x, mouseDefaultPos.y);
+
+        if(InitializeD3D9(&device, hWnd) == 0)
+        {
+            OutputDebugString("D3D9 INITIALIZED\n");
+            if(device == NULL)
+            {
+                OutputDebugString("device is NULL ptr\n");
+            }
+            else
+            {
+                SetUp(device);  
+                GenVertices(&terrain, device);
+                GenIndices(&terrain, device);
+                GenerateTexture(&terrain, device, lightDir);
+            
+                boundingBox.max = D3DXVECTOR3( 256.0f * terrain.cellSpacing,  400.0f,  256.0f * terrain.cellSpacing);
+                boundingBox.min = D3DXVECTOR3( (256.0f * terrain.cellSpacing)  / 2,    0.0f, (256.0f * terrain.cellSpacing) / 2); 
+            
+                InitSnow(&ps, &boundingBox, 2048);
+                Init(&ps, device, "./data/snowball.bmp");
+
+                LoadOBJFile(device, &avion, "./data/tree4.obj", "./data/tree4.bmp");
+
+            }
+        }
 
         while(appRunnig == TRUE)
         {
