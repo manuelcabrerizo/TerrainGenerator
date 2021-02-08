@@ -165,7 +165,7 @@ void InitSnow(ParticleSystem* particleSystem,
 {
     particleSystem->boundingBox = *boundingBox;
     particleSystem->size = 0.25f;
-    particleSystem->vbSize = 2048;
+    particleSystem->vbSize = 10000;
     particleSystem->vbOffset = 0;
     particleSystem->vbBatchSize = 512;
 
@@ -197,7 +197,7 @@ void ResetParticle(BoundingBox* boundingBox, Attribute* attribute)
     attribute->position.y = boundingBox->max.y;
 
     attribute->velocity.x = GetRandomFloat(0.0f, 1.0f) * -3.0f;
-    attribute->velocity.y = GetRandomFloat(0.0f, 1.0f) * -10.0f;
+    attribute->velocity.y = GetRandomFloat(0.0f, 1.0f) * -30.0f;
     attribute->velocity.z = -GetRandomFloat(0.0f, 1.0f) * -3.0f;
 
     attribute->color = (D3DCOLOR)D3DCOLOR_XRGB(255, 255, 255); 

@@ -589,7 +589,7 @@ int WinMain(HINSTANCE hInstance,
                 GenerateTexture(&terrain, device, lightDir);
                 boundingBox.max = D3DXVECTOR3( 256.0f * terrain.cellSpacing,  400.0f,  256.0f * terrain.cellSpacing);
                 boundingBox.min = D3DXVECTOR3( (256.0f * terrain.cellSpacing)  / 2,    0.0f, (256.0f * terrain.cellSpacing) / 2); 
-                InitSnow(&ps, &boundingBox, 2048);
+                InitSnow(&ps, &boundingBox, 10000);
                 Init(&ps, device, "./data/snowball.bmp");
                 LoadOBJFile(device, &avion, "./data/tree4.obj", "./data/tree4.bmp");
 
