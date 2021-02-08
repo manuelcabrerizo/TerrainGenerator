@@ -204,7 +204,7 @@ void ResetParticle(BoundingBox* boundingBox, Attribute* attribute)
 }
 
 void PsUpdate(ParticleSystem* particleSystem, float deltaTime)
-{
+{ 
     for(int i = 0; i < particleSystem->vbSize; i++)
     {
         particleSystem->particles[i].position += particleSystem->particles[i].velocity * deltaTime;

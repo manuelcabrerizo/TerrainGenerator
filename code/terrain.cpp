@@ -21,10 +21,6 @@ texture_t LoadBMP(const char* filename)
         texture.width = header.width;
         texture.height = header.height;
     }
-    else
-    {
-        printf("cannot read the file %s\n", filename);
-    }
     fclose(file);
     return texture;
 }

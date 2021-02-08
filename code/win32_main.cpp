@@ -6,10 +6,11 @@
 #include "camera.h"
 #include <stdio.h>
 #include "mesh.h"
+#include "input.h"
 
 #define global_variable static
-#define WNDWIDTH 1920
-#define WNDHEIGHT 1080
+#define WNDWIDTH 1000
+#define WNDHEIGHT 800
 
 //#define WNDWIDTH 1280
 //#define WNDHEIGHT 720
@@ -81,6 +82,27 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam)
     LRESULT result;
     switch(Msg)
     {
+        case WM_KEYUP:
+        {
+ 			uint32_t  VKCode = wParam;
+			bool wasDown = ((lParam & (1 << 30)) != 0);
+			bool isDown = ((lParam & (1 << 31)) == 0);
+			if (wasDown != isDown)
+			{
+				SetScanCodeUp(VKCode);
+			}  
+        }break;
+
+        case WM_KEYDOWN:
+        {
+ 			uint32_t  VKCode = wParam;
+			bool wasDown = ((lParam & (1 << 30)) != 0);
+			bool isDown = ((lParam & (1 << 31)) == 0);
+			if (wasDown != isDown)
+			{
+				SetScanCodeDown(VKCode);
+			} 
+        }break;
         case WM_CLOSE:
         {
             appRunnig = FALSE;
@@ -164,12 +186,12 @@ int InitializeD3D9(IDirect3DDevice9** device, HWND hWnd)
 	d3dpp.MultiSampleQuality         = 0;
 	d3dpp.SwapEffect                 = D3DSWAPEFFECT_DISCARD; 
 	d3dpp.hDeviceWindow              = hWnd;
-	d3dpp.Windowed                   = false;
+	d3dpp.Windowed                   = true;
 	d3dpp.EnableAutoDepthStencil     = true; 
 	d3dpp.AutoDepthStencilFormat     = D3DFMT_D24S8;
 	d3dpp.Flags                      = 0;
 	d3dpp.FullScreen_RefreshRateInHz = D3DPRESENT_RATE_DEFAULT;
-	d3dpp.PresentationInterval       = D3DPRESENT_INTERVAL_IMMEDIATE;
+	d3dpp.PresentationInterval       = D3DPRESENT_INTERVAL_ONE;
     // step 4: create a d3d_device whit all the information we hace until now      
     hr = d3d->CreateDevice(D3DADAPTER_DEFAULT,
                            D3DDEVTYPE_HAL,
@@ -258,57 +280,85 @@ void SetUp(IDirect3DDevice9* device)
 
 void Update(RenderState& renderState, ParticleSystem* particleSystem, Terrain* terrain, IDirect3DDevice9* device, float deltaTime)
 {
-
     dirVector.x = mouseRMovement.x * 0.02;
     dirVector.y = 0.0f; 
     dirVector.z = mouseRMovement.y * 0.02;
 
     static float angle = 0.0f;
-    float speed = 100.0f;
-    if(GetAsyncKeyState(VK_ESCAPE) & 0x8000f)
+    float speed = 100.0f * deltaTime;
+    float rotationSpeed = 3.0f * deltaTime;
+    if(KeyDown(VK_ESCAPE))
         appRunnig = FALSE;
-    if(GetAsyncKeyState('1') & 0x8000f)
+    if(KeyDown('1'))
         renderState = SOLID;
-    if(GetAsyncKeyState('2') & 0x8000f)
+    if(KeyDown('2'))
         renderState = WIREFRAME;
-    if(GetAsyncKeyState('3') & 0x8000f)
+    if(KeyDown('3'))
         renderState = VERTEXSHOW;
-    if(GetAsyncKeyState('4') & 0x8000f)
+    if(KeyDown('4'))
         renderState = WIREFRAMEVERTEX;
-    if(GetAsyncKeyState('5') & 0x8000f)
+    if(KeyDown('5'))
         renderState = WIREFRAMESOLID;
-    if(GetAsyncKeyState('6') & 0x8000f)
+    if(KeyDown('6'))
         renderState = FULL;
-	if(GetAsyncKeyState('W') & 0x8000f)
-		camera.walk(speed * deltaTime);
-	if(GetAsyncKeyState('S') & 0x8000f)
-		camera.walk(-speed * deltaTime);
-	if(GetAsyncKeyState('A') & 0x8000f)
-		camera.strafe(-speed * deltaTime);
-	if(GetAsyncKeyState('D') & 0x8000f)
-		camera.strafe(speed * deltaTime);
-	if(GetAsyncKeyState('R') & 0x8000f)
-		camera.fly(speed * deltaTime);
-	if(GetAsyncKeyState('F') & 0x8000f)
-		camera.fly(-speed * deltaTime);
-	if(GetAsyncKeyState(VK_UP) & 0x8000f)
-		camera.pitch(-1.0f * deltaTime);
-	if(GetAsyncKeyState(VK_DOWN) & 0x8000f)
-		camera.pitch(1.0f * deltaTime);
-	if(GetAsyncKeyState(VK_LEFT) & 0x8000f)
+	if(KeyDown('R'))
+		camera.fly(speed);
+	if(KeyDown('F'))
+		camera.fly(-speed);
+	if(KeyDown(VK_UP))
+		camera.pitch(-rotationSpeed);
+	if(KeyDown(VK_DOWN))
+		camera.pitch(rotationSpeed);
+	if(KeyDown(VK_LEFT))
     {
-		camera.yaw(-1.0f * deltaTime);
-        angle -= 1.0f * deltaTime;
+		camera.yaw(-rotationSpeed);
+        angle -= rotationSpeed;
     }
-	if(GetAsyncKeyState(VK_RIGHT) & 0x8000f)
+	if(KeyDown(VK_RIGHT))
     {
-		camera.yaw(1.0f * deltaTime);
-        angle += 1.0f * deltaTime;
+		camera.yaw(rotationSpeed);
+        angle += rotationSpeed;
     }
-	if(GetAsyncKeyState('N') & 0x8000f)
-		camera.roll(1.0f * deltaTime);
-	if(GetAsyncKeyState('M') & 0x8000f)
-		camera.roll(-1.0f * deltaTime);
+	if(KeyDown('N'))
+		camera.roll(rotationSpeed);
+	if(KeyDown('M'))
+		camera.roll(-rotationSpeed);
+
+
+    D3DXVECTOR3 pos;
+    camera.getPosition(&pos);
+	if(KeyDown('W'))
+    {
+        pos += D3DXVECTOR3(camera.look.x, 0.0f, camera.look.z) * speed;
+    }
+	if(KeyDown('S'))
+    {
+		pos += D3DXVECTOR3(camera.look.x, 0.0f, camera.look.z) * -speed;
+    }
+	if(KeyDown('A'))
+    {
+		pos += D3DXVECTOR3(camera.right.x, 0.0f, camera.right.z) * -speed;
+    }
+	if(KeyDown('D'))
+    {
+		pos += D3DXVECTOR3(camera.right.x, 0.0f, camera.right.z) * speed;
+    } 
+    D3DXVECTOR3 upNormal(0.0f, 1.0f, 0.0f);
+    D3DXVECTOR3 actualPosNormal = GetVertexNormal(pos.x / terrain->cellSpacing, pos.z / terrain->cellSpacing, terrain);
+    D3DXVec3Normalize(&actualPosNormal, &actualPosNormal);
+    float slope = -D3DXVec3Dot(&actualPosNormal, &upNormal);
+    char message[63];
+    sprintf(message, "slope: %f\n", slope);
+    OutputDebugString(message);
+    bool colition = false;
+    if(slope > 0.9f || !colition)
+    {
+        float heightCam = getHeight(terrain, pos.x / terrain->cellSpacing, pos.z / terrain->cellSpacing) * terrain->heightScale;
+        pos.y = heightCam + 2.5f;
+        camera.setPosition(&pos);
+    }
+
+
 
     D3DXMATRIX V;
     camera.getViewMatrix(&V);
@@ -371,9 +421,11 @@ void Render(RenderState renderState, Mesh* mesh, ParticleSystem* particleSystem,
         
 
         device->SetRenderState(D3DRS_LIGHTING, false);
+        //device->SetMaterial(&quadMtrl);
         device->SetTexture(0, mesh->tex); 
         device->SetStreamSource(0, mesh->D3DvertexBuffer, 0, sizeof(MeshVertex));
         device->SetFVF(MeshVertex::FVF);
+  
         for(int y = 4; y < terrain->numVertexCol; y += 8)
         {
             for(int x = 4; x < terrain->numVertexRow; x += 8)
@@ -385,6 +437,7 @@ void Render(RenderState renderState, Mesh* mesh, ParticleSystem* particleSystem,
                 device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, mesh->numIndex);
             }
         }
+  
         device->SetTexture(0, 0);
 
 
@@ -474,6 +527,13 @@ int WinMain(HINSTANCE hInstance,
             LPSTR     lpCmdLine,
             int       nCmdShow)
 {
+    IDirect3DDevice9* device = 0;
+    Terrain terrain;
+    RenderState renderState = SOLID;
+    SetMapInfo(&terrain, 256, 256, 10, 1.0f);
+    SetHeightMapInfo(heightMap, &terrain);
+    Mesh avion; 
+
     WNDCLASS wc;
     ZeroMemory(&wc, sizeof(wc));
     wc.style         = CS_HREDRAW | CS_VREDRAW;;
@@ -501,19 +561,13 @@ int WinMain(HINSTANCE hInstance,
                   NULL, NULL,
                   hInstance,
                   NULL);
-    
+    LARGE_INTEGER perfCountFrequency;
+    QueryPerformanceFrequency(&perfCountFrequency);
+    uint64_t frequency = (uint64_t)perfCountFrequency.QuadPart;
 
-    IDirect3DDevice9* device = 0;
-    Terrain terrain;
-    RenderState renderState = SOLID;
-    SetMapInfo(&terrain, 256, 256, 10, 1.0f);
-    SetHeightMapInfo(heightMap, &terrain);
-    Mesh avion;
-        
     if(hWnd)
     {
         appRunnig = TRUE;
-
         ShowWindow(hWnd, SW_SHOW);
         ShowCursor(false); 
         mouseDefaultPos.x = WNDWIDTH / 2.0f;
@@ -533,25 +587,21 @@ int WinMain(HINSTANCE hInstance,
                 GenVertices(&terrain, device);
                 GenIndices(&terrain, device);
                 GenerateTexture(&terrain, device, lightDir);
-            
                 boundingBox.max = D3DXVECTOR3( 256.0f * terrain.cellSpacing,  400.0f,  256.0f * terrain.cellSpacing);
                 boundingBox.min = D3DXVECTOR3( (256.0f * terrain.cellSpacing)  / 2,    0.0f, (256.0f * terrain.cellSpacing) / 2); 
-            
                 InitSnow(&ps, &boundingBox, 2048);
                 Init(&ps, device, "./data/snowball.bmp");
-
                 LoadOBJFile(device, &avion, "./data/tree4.obj", "./data/tree4.bmp");
 
             }
         }
-
+        LARGE_INTEGER lastCounter;
+        QueryPerformanceCounter(&lastCounter);
         while(appRunnig == TRUE)
         {
             MSG  msg;
-            BOOL bRet;
-            
+            BOOL bRet; 
             static float lastTime = (float)timeGetTime();
-
             if(PeekMessageA(&msg, hWnd, 0, 0, PM_REMOVE))
             {            
                 TranslateMessage(&msg); 
@@ -561,13 +611,13 @@ int WinMain(HINSTANCE hInstance,
             {
                 if(device != NULL)
                 {
-                    float currentTime = (float)timeGetTime();
-                    float deltaTime = (currentTime - lastTime) * 0.001f;
-
+                    LARGE_INTEGER endCounter;
+                    QueryPerformanceCounter(&endCounter);
+                    uint64_t counterElapsed =  endCounter.QuadPart - lastCounter.QuadPart; 
+                    float deltaTime = (counterElapsed / (float)frequency);
                     Update(renderState, &ps, &terrain, device, deltaTime);
                     Render(renderState, &avion, &ps, &terrain, device, deltaTime);
-
-                    lastTime = currentTime;    
+                    lastCounter = endCounter; 
                 }
                 else
                 {
